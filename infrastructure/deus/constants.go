@@ -1,7 +1,9 @@
 package deus
 
 const (
-  ContentIDHeader = "cid"
-  FunctionalIDHeader = "fid"
-  ServerIDHeader = "sid"
+  ContentIDHeader = "content_id"
+  FunctionalIDHeader = "functional_id"
+  ServerIDHeader = "server_id"
+  RegionNameHeader = "region_id"
+  ContentRuleHeader = "content_rule"
 )

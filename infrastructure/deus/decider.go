@@ -19,7 +19,7 @@ requests in different regions to pull data to be dynamically served by
 the network. A threshold number of requests/time is used to decide whether
 or not a piece of content will be pulled*/
 type ThresholdPullDecider struct {
-  validator ContentValidator
+  validator ContentRules
   requestCounts map[string]int
   mutex *sync.Mutex
 }
@@ -35,7 +35,7 @@ func unpackServePairKey(key string) (string, string) {
 
 /* NewThresholdPullDecider creates a new ThresholdPullDecider and starts the
 decision thread with the passed in requestThreshold and decisionInterval params */
-func NewThresholdPullDecider(validator ContentValidator, contentManager ContentManager,
+func NewThresholdPullDecider(validator ContentRules, contentManager ContentManager,
   dataState ContentState, requestThreshold int, decisionInterval time.Duration) *ThresholdPullDecider {
 
   // Create ThresholdPullDecider objects
@@ -81,7 +81,7 @@ func NewThresholdPullDecider(validator ContentValidator, contentManager ContentM
 
 // NewRequest logs a request that was made for future pull decisions
 func (t *ThresholdPullDecider) NewRequest(cid string, serverID string) {
-  if t.validator.MatchesPrefixRule(cid) {
+  if t.validator.MatchesRule(cid) {
     key := generateServePairKey(cid, serverID)
     t.mutex.Lock()
     t.requestCounts[key]++

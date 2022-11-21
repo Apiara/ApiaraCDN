@@ -36,11 +36,15 @@ func NewRedisContentState(addr string) *RedisContentState {
   }
 }
 
+func generateServerContentKey(serverID string) string {
+  return "content:" + serverID
+}
+
 /* Set sets that serverID is currently serving cid and that this was either
 invoked in a push(!dynamic) or pull(dynamic) fashion */
 func (r *RedisContentState) Set(cid string, serverID string, dynamic bool) error {
-  key := generateServePairKey(cid, serverID)
-  err := r.rdb.Set(r.ctx, key, strconv.FormatBool(dynamic), 0).Err()
+  serverKey := generateServerContentKey(serverID)
+  err := r.rdb.HSet(r.ctx, serverKey, cid, strconv.FormatBool(dynamic)).Err()
   if err != nil {
     return fmt.Errorf("Failed to create serving entry for %s on %s: %w", cid, serverID, err)
   }
@@ -50,8 +54,8 @@ func (r *RedisContentState) Set(cid string, serverID string, dynamic bool) error
 /* Remove sets that serverID is not serving cid anymore and that this was either
 invoked in a push(!dynamic) or pull(dynamic) fashion */
 func (r *RedisContentState) Remove(cid string, serverID string) error {
-  key := generateServePairKey(cid, serverID)
-  err := r.rdb.Del(r.ctx, key).Err()
+  serverKey := generateServerContentKey(serverID)
+  err := r.rdb.HDel(r.ctx, serverKey, cid).Err()
   if err != nil {
     return fmt.Errorf("Failed to delete serving entry for %s on %s: %w", cid, serverID, err)
   }
@@ -60,8 +64,8 @@ func (r *RedisContentState) Remove(cid string, serverID string) error {
 
 // IsBeingServed returns whether or not serverID is serving cid
 func (r *RedisContentState) IsBeingServed(cid string, serverID string) (bool, error) {
-  key := generateServePairKey(cid, serverID)
-  _, err := r.rdb.Get(r.ctx, key).Result()
+  serverKey := generateServerContentKey(serverID)
+  _, err := r.rdb.HGet(r.ctx, serverKey, cid).Result()
   if err == redis.Nil {
     return false, nil
   } else if err != nil {
@@ -72,8 +76,8 @@ func (r *RedisContentState) IsBeingServed(cid string, serverID string) (bool, er
 
 // WasDynamicallySet returns cid was dynamically or manually set to be served by serverID
 func (r *RedisContentState) WasDynamicallySet(cid string, serverID string) (bool, error) {
-  key := generateServePairKey(cid, serverID)
-  val, err := r.rdb.Get(r.ctx, key).Result()
+  serverKey := generateServerContentKey(serverID)
+  val, err := r.rdb.HGet(r.ctx, serverKey, cid).Result()
   if err == redis.Nil {
     return false, fmt.Errorf("No entry for CID: %s and ServerID: %s", cid, serverID)
   } else if err != nil {
