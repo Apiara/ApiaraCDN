@@ -54,7 +54,7 @@ func (r *RedisGeoServerIndex) SetRegionAddress(location string, address string) 
 }
 
 // RemoveRegionAddress removes a (location, address) pair from the index
-func (r *RedisGeoServerIndex) RemoveRegionAddress(location string, address string) error {
+func (r *RedisGeoServerIndex) RemoveRegionAddress(location string) error {
   err := r.rdb.Del(r.ctx, location).Err()
   if err != nil {
     return fmt.Errorf("Failed to remove location->address entry for %s: %w", location, err)

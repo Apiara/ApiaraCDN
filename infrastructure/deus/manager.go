@@ -6,6 +6,7 @@ import (
   "time"
   "fmt"
   "encoding/json"
+  infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
 var (
@@ -30,6 +31,18 @@ type MasterContentManager struct {
   coordinateAPIAddr string
 }
 
+/* NewMasterContentManager returns a new instances of MasterContentManager
+that uses the processAPI and coordinateAPI to delegate tasks */
+func NewMasterContentManager(dataState ContentState, processAPI string,
+  coordinateAPI string) *MasterContentManager {
+  return &MasterContentManager{
+    serveState: dataState,
+    httpClient: http.DefaultClient,
+    processAPIAddr: processAPI,
+    coordinateAPIAddr: coordinateAPI,
+  }
+}
+
 func (m *MasterContentManager) processContent(cid string) (string, error) {
   type StatusResponse struct {
     Status string `json:"Status"`
@@ -43,7 +56,7 @@ func (m *MasterContentManager) processContent(cid string) (string, error) {
   }
 
   query := url.Values{}
-  query.Add(ContentIDHeader, cid)
+  query.Add(infra.ContentIDHeader, cid)
   processReq.URL.RawQuery = query.Encode()
 
   resp, err := m.httpClient.Do(processReq)
@@ -103,7 +116,7 @@ func (m *MasterContentManager) deleteProcessedContent(cid string) error {
   }
 
   query := url.Values{}
-  query.Add(ContentIDHeader, cid)
+  query.Add(infra.ContentIDHeader, cid)
   deleteReq.URL.RawQuery = query.Encode()
 
   // Perform removal request
@@ -125,8 +138,8 @@ func (m *MasterContentManager) publishContent(cid string, functionlID string) er
   }
 
   query := url.Values{}
-  query.Add(ContentIDHeader, cid)
-  query.Add(FunctionalIDHeader, functionlID)
+  query.Add(infra.ContentIDHeader, cid)
+  query.Add(infra.FunctionalIDHeader, functionlID)
   publishReq.URL.RawQuery = query.Encode()
 
   // Perform content publishing request
@@ -148,7 +161,7 @@ func (m *MasterContentManager) purgeContent(cid string) error {
   }
 
   query := url.Values{}
-  query.Add(ContentIDHeader, cid)
+  query.Add(infra.ContentIDHeader, cid)
   purgeReq.URL.RawQuery = query.Encode()
 
   // Perform content purge request

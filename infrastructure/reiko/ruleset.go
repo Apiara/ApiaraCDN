@@ -1,4 +1,4 @@
-package deus
+package reiko
 
 import (
   "fmt"
@@ -20,7 +20,7 @@ const (
 
 // ContentRules allows modification of valid content rules as well as rule checking
 type ContentRules interface {
-  MatchesRule(cid string) bool
+  MatchesRule(cid string) (bool, error)
   SetRule(rule string) error
   DelRule(rule string) error
 }

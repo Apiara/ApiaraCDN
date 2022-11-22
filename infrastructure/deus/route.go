@@ -5,6 +5,7 @@ import (
   "net"
   "log"
   "encoding/json"
+  infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
 func matchReqToRegionalServer(req *http.Request, geoFinder IPGeoFinder,
@@ -23,8 +24,8 @@ func matchReqToRegionalServer(req *http.Request, geoFinder IPGeoFinder,
 
 // StartDeviceRoutingAPI starts the API used by clients and endpoints to find
 // region based session servers
-func StartDeviceRoutingAPI(geoFinder IPGeoFinder, dataState ContentState,
-  serverIndex GeoServerIndex, decider PullDecider, listenAddr string) {
+func StartDeviceRoutingAPI(listenAddr string, geoFinder IPGeoFinder, dataState ContentState,
+  serverIndex GeoServerIndex, decider PullDecider) {
 
   //Response type for all routing API requests
   type RouteResponse struct {
@@ -42,8 +43,11 @@ func StartDeviceRoutingAPI(geoFinder IPGeoFinder, dataState ContentState,
     }
 
     // Forward request to Pull Decider
-    cid := req.URL.Query().Get(ContentIDHeader)
-    decider.NewRequest(cid, serverAddr)
+    cid := req.URL.Query().Get(infra.ContentIDHeader)
+    err = decider.NewRequest(cid, serverAddr)
+    if err != nil {
+      log.Printf("Request for %s was not ingested by decider: %v", cid, err)
+    }
 
     // Check if requested content is being served and respond appropriately
     serving, err := dataState.IsBeingServed(cid, serverAddr)

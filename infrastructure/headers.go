@@ -1,4 +1,4 @@
-package deus
+package infrastructure
 
 const (
   ContentIDHeader = "content_id"
