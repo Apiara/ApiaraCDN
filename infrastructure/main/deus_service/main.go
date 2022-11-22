@@ -9,6 +9,8 @@ import (
   "github.com/Apiara/ApiaraCDN/infrastructure/deus"
 )
 /*
+Configuration Format
+--------------------
 
 pull_frequency = time.Duration
 pull_request_threshold = int
@@ -21,7 +23,6 @@ process_api = string
 coordinate_api = string
 
 redis_address = string
-
 
 [regions.pnw]
   min_latitude = float64
@@ -105,7 +106,7 @@ func main() {
     conf.PullRequestThreshold, conf.PullFrequency)
 
   // Start APIs
-  go deus.StartOverrideAPI(overrideListenAddr, manager, serverIndex)
+  go deus.StartOverrideAPI(overrideListenAddr, manager, serverIndex, geoFinder)
   deus.StartDeviceRoutingAPI(routeListenAddr, geoFinder, contentState,
     serverIndex, pullDecider)
 }

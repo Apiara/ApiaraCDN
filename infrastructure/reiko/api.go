@@ -6,6 +6,10 @@ import (
   infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
+const (
+  ContentRuleHeader = "content_rule"
+)
+
 // StartOverrideAPI starts the API used for PUSH based content delivery(as opposed to PULL)
 func StartRulesetAPI(listenAddr string, ruleset ContentRules) {
   rulesetAPI := http.NewServeMux()
@@ -29,7 +33,7 @@ func StartRulesetAPI(listenAddr string, ruleset ContentRules) {
 
   // Set content rule
   rulesetAPI.HandleFunc("/setContentRule", func(resp http.ResponseWriter, req *http.Request) {
-    rule := req.URL.Query().Get(infra.ContentRuleHeader)
+    rule := req.URL.Query().Get(ContentRuleHeader)
 
     if err := ruleset.SetRule(rule); err != nil {
       resp.WriteHeader(http.StatusInternalServerError)
@@ -39,7 +43,7 @@ func StartRulesetAPI(listenAddr string, ruleset ContentRules) {
 
   // Remove content rule
   rulesetAPI.HandleFunc("/removeContentRule", func(resp http.ResponseWriter, req *http.Request) {
-    rule := req.URL.Query().Get(infra.ContentRuleHeader)
+    rule := req.URL.Query().Get(ContentRuleHeader)
 
     if err := ruleset.DelRule(rule); err != nil {
       resp.WriteHeader(http.StatusInternalServerError)

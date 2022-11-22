@@ -3,12 +3,14 @@ package deus
 import (
   "net"
   "fmt"
+  "sync"
   "github.com/oschwald/geoip2-golang"
 )
 
 // IPGeoFinder provides IP Address to Region lookups
 type IPGeoFinder interface {
   Location(ip string) (string, error)
+  LoadDatabase(mmdbFile string) error
 }
 
 // A region is a rectangular region of space defined by two latitude, longitude pairs
@@ -31,24 +33,40 @@ which are then used to figure out what region an IP address may be in */
 type MaxMindIPGeoFinder struct {
   db *geoip2.Reader
   regions []Region
+  mutex *sync.RWMutex
 }
 
 // NewMaxMindIPGeoFinder returns a MaxMindIPGeoFinder that uses the provided .mmdb file
 func NewMaxMindIPGeoFinder(mmdbFile string, regions []Region) (*MaxMindIPGeoFinder, error) {
-  db, err := geoip2.Open(mmdbFile)
-  if err != nil {
-    return nil, err
-  }
-  return &MaxMindIPGeoFinder{
-    db: db,
+  geoFinder := &MaxMindIPGeoFinder{
     regions: regions,
-  }, nil
+    mutex: &sync.RWMutex{},
+  }
+  return geoFinder, geoFinder.LoadDatabase(mmdbFile)
+}
+
+func (m *MaxMindIPGeoFinder) LoadDatabase(mmdbFile string) error {
+  m.mutex.Lock()
+  defer m.mutex.Unlock()
+  if m.db != nil {
+    m.db.Close()
+  }
+
+  newDB, err := geoip2.Open(mmdbFile)
+  if err != nil {
+    return err
+  }
+
+  m.db = newDB
+  return nil
 }
 
 // Location returns the region name for the provided IP
 func (m *MaxMindIPGeoFinder) Location(ipStr string) (string, error) {
   ip := net.ParseIP(ipStr)
+  m.mutex.RLock()
   record, err := m.db.City(ip)
+  m.mutex.RUnlock()
   if err != nil {
     return "", err
   }
