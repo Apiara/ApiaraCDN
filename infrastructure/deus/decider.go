@@ -14,6 +14,10 @@ type PullDecider interface {
   NewRequest(cid string, serverID string) error
 }
 
+// MockPullDecider is a PullDecider mock for testing
+type MockPullDecider struct {}
+func (m *MockPullDecider) NewRequest(string, string) error { return nil }
+
 /* ThresholdPullDecider uses information about the frequency of content
 requests in different regions to pull data to be dynamically served by
 the network. A threshold number of requests/time is used to decide whether
@@ -25,7 +29,7 @@ type ThresholdPullDecider struct {
 }
 
 func generateServePairKey(cid string, serverID string) string {
-  return serverID + "|" + cid
+  return cid + "|" + serverID
 }
 
 func unpackServePairKey(key string) (string, string) {
@@ -68,9 +72,15 @@ func NewThresholdPullDecider(validator ContentValidator, contentManager ContentM
           }
         } else if count < requestThreshold { // Remove data if below threshold and being served
           if err := contentManager.Remove(cid, serverAddr, true); err != nil {
+            delete(decider.requestCounts, key)
             log.Println(err)
           }
         }
+      }
+
+      // Reset map
+      for key := range decider.requestCounts {
+        decider.requestCounts[key] = 0
       }
       decider.mutex.Unlock()
     }

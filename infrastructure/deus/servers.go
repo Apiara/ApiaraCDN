@@ -13,6 +13,12 @@ type GeoServerIndex interface {
   RemoveRegionAddress(location string) error
 }
 
+// MockGeoServerIndex is a mock implementation for testing
+type MockGeoServerIndex struct{}
+func (m *MockGeoServerIndex) GetAddress(string) (string, error) { return "", nil }
+func (m *MockGeoServerIndex) SetRegionAddress(string, string) error { return nil }
+func (m *MockGeoServerIndex) RemoveRegionAddress(string) error { return nil }
+
 // RedisGeoServerIndex implements GeoServerIndex using a Redis cache
 type RedisGeoServerIndex struct {
   rdb *redis.Client

@@ -12,7 +12,9 @@ import (
 const (
   //PrefixRulesRedisKey is the key that stores the set with all prefix rules in redis
   PrefixRulesRedisKey = "prefixes:valid"
+)
 
+var (
   /* RuleSetRefreshDuration is the frequency at which the rule set will
   be re-read to check for updates */
   RuleSetRefreshDuration = time.Minute
@@ -81,9 +83,12 @@ func (r *PrefixContentRules) getRules() ([]string, error) {
   }
 
   val, err := r.rdb.SMembers(r.ctx, PrefixRulesRedisKey).Result()
-  if err != nil {
+  if err == redis.Nil {
+    val = []string{}
+  } else if err != nil {
     return nil, err
   }
+
   r.lastRead = time.Now()
   r.ruleSet = val
   return val, nil

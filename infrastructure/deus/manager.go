@@ -23,6 +23,21 @@ type ContentManager interface {
   Remove(cid string, serverAddr string, dynamic bool) error
 }
 
+// MockContentManager is a mock implementation for testing
+type MockContentManager struct{
+  serving map[string]bool
+}
+
+func (m *MockContentManager) Serve(cid string, server string, dyn bool) error {
+  m.serving[cid + server] = dyn
+  return nil
+}
+
+func (m *MockContentManager) Remove(cid string, server string, dyn bool) error {
+  delete(m.serving, cid + server)
+  return nil
+}
+
 // MasterContentManager implements ContentManager
 type MasterContentManager struct {
   serveState ContentState
@@ -43,12 +58,12 @@ func NewMasterContentManager(dataState ContentState, processAPI string,
   }
 }
 
-func (m *MasterContentManager) processContent(cid string) (string, error) {
-  type StatusResponse struct {
-    Status string `json:"Status"`
-    FunctionalID *string `json:"FunctionalID"`
-  }
+type StatusResponse struct {
+  Status string `json:"Status"`
+  FunctionalID *string `json:"FunctionalID"`
+}
 
+func (m *MasterContentManager) processContent(cid string) (string, error) {
   // Create data process request
   processReq, err := http.NewRequest("GET", m.processAPIAddr + "/process", nil)
   if err != nil {

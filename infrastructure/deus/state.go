@@ -16,6 +16,28 @@ type ContentState interface {
   WasDynamicallySet(cid string, serverID string) (bool, error)
 }
 
+// MockContentState is a mock implementation for testing
+type MockContentState struct{
+  serveSet map[string]struct{}
+}
+
+func (m *MockContentState) Set(cid string, server string, dyn bool) error {
+  m.serveSet[cid+server] = struct{}{}
+  return nil
+}
+
+func (m *MockContentState) Remove(cid string, server string) error {
+  delete(m.serveSet, cid+server)
+  return nil
+}
+
+func (m *MockContentState) IsBeingServed(cid string, server string) (bool, error) {
+  _, ok := m.serveSet[cid+server]
+  return ok, nil
+}
+
+func (m *MockContentState) WasDynamicallySet(string, string) (bool, error) { return true, nil}
+
 // RedisContentState implements ContentState using Redis
 type RedisContentState struct {
   rdb *redis.Client

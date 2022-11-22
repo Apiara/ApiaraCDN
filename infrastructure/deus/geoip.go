@@ -10,8 +10,13 @@ import (
 // IPGeoFinder provides IP Address to Region lookups
 type IPGeoFinder interface {
   Location(ip string) (string, error)
-  LoadDatabase(mmdbFile string) error
+  LoadDatabase(dbFile string) error
 }
+
+// MockIPGeoFinder is a mock implementation for testing
+type MockIPGeoFinder struct {}
+func (m *MockIPGeoFinder) Location(string) (string, error) { return "Oregon", nil }
+func (m *MockIPGeoFinder) LoadDatabase(string) error { return nil }
 
 // A region is a rectangular region of space defined by two latitude, longitude pairs
 type Region struct {
