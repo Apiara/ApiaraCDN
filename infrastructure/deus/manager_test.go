@@ -4,6 +4,7 @@ import (
   "testing"
   "net/http"
   "encoding/json"
+  infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
 func TestMasterContentManager(t *testing.T) {
@@ -16,7 +17,7 @@ func TestMasterContentManager(t *testing.T) {
     mockServer := http.NewServeMux()
     mockServer.HandleFunc("/process", func(resp http.ResponseWriter, req *http.Request) {})
     mockServer.HandleFunc("/status", func(resp http.ResponseWriter, req *http.Request) {
-      json.NewEncoder(resp).Encode(&StatusResponse{"complete", &functionalID})
+      json.NewEncoder(resp).Encode(&infra.StatusResponse{"complete", &functionalID})
     })
     mockServer.HandleFunc("/delete", func(resp http.ResponseWriter, req *http.Request) {})
     mockServer.HandleFunc("/publish", func(resp http.ResponseWriter, req *http.Request) {})

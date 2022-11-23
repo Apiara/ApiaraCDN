@@ -58,11 +58,6 @@ func NewMasterContentManager(dataState ContentState, processAPI string,
   }
 }
 
-type StatusResponse struct {
-  Status string `json:"Status"`
-  FunctionalID *string `json:"FunctionalID"`
-}
-
 func (m *MasterContentManager) processContent(cid string) (string, error) {
   // Create data process request
   processReq, err := http.NewRequest("GET", m.processAPIAddr + "/process", nil)
@@ -90,7 +85,7 @@ func (m *MasterContentManager) processContent(cid string) (string, error) {
   }
   statusReq.URL.RawQuery = query.Encode()
 
-  status := StatusResponse{}
+  status := infra.StatusResponse{}
   startTime := time.Now()
   for time.Since(startTime) < ProcessStatusTimeout {
     // Sleep for poll time
@@ -111,11 +106,11 @@ func (m *MasterContentManager) processContent(cid string) (string, error) {
 
     // Check state
     switch status.Status {
-    case "running":
+    case infra.RunningProcessing:
       continue
-    case "failed":
+    case infra.FailedProcessing:
       return "", fmt.Errorf("Process request for %s failed", cid)
-    case "complete":
+    case infra.FinishedProcessing:
       return *(status.FunctionalID), nil
     }
   }

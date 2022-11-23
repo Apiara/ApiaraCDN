@@ -24,6 +24,7 @@ const (
 type MediaDigest struct {
   Type MediaType
   CryptKey []byte
+  FunctionalID string
   Result interface{}
 }
 
@@ -193,6 +194,7 @@ func (a *AESDataProcessor) DigestMedia(ingest MediaIngest) (MediaDigest, error) 
         return MediaDigest{}, fmt.Errorf("Failed to digest raw media file: %w", err)
       }
       digest.Result = media
+      digest.FunctionalID = media.FunctionalID
       break
     case VODMedia:
       mediaMap, err := a.digestManifest(block, ingest.Result.(manifest))
@@ -200,6 +202,7 @@ func (a *AESDataProcessor) DigestMedia(ingest MediaIngest) (MediaDigest, error) 
         return MediaDigest{}, fmt.Errorf("Failed to digest manifest: %w", err)
       }
       digest.Result = mediaMap
+      digest.FunctionalID = mediaMap.FunctionalID
       break
     default:
       return MediaDigest{}, fmt.Errorf("Invalid ingest type: %w", err)
