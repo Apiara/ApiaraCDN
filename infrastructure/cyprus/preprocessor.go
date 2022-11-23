@@ -4,7 +4,9 @@ import (
   "path"
   "fmt"
   "os"
+  "strings"
   "io/ioutil"
+  "path/filepath"
   "github.com/etherlabsio/go-m3u8/m3u8"
 )
 
@@ -18,8 +20,12 @@ const (
   VODMedia
 )
 
-// MediaMetadata is the return type for a DataPreprocessor
-type MediaMetadata struct {
+const (
+  ingestFilePattern = "ingest_*"
+)
+
+// MediaIngest is the return type for a DataPreprocessor
+type MediaIngest struct {
   Type MediaType
   Result interface{}
 }
@@ -27,50 +33,79 @@ type MediaMetadata struct {
 /* DataPreprocessor represents an object that can perform preprocessing tasks
 for data attempting to be uploaded to the network */
 type DataPreprocessor interface {
-  CreateMediaResources(url string) (MediaMetadata, error) //Outputs folder output and error
+  IngestMedia(url string) (MediaIngest, error) //Outputs folder output and error
 }
 
-// RawDataPreprocessor implements DataPreprocessor for raw media files(ex. mp4)
-type RawDataPreprocessor struct {
+/* CompoundPreprocessor implements DataPreprocessor by checking URL extensions
+and routing to the media type specific preprocessor */
+type CompoundPreprocessor struct {
+  extensionMap map[string]DataPreprocessor
+}
+
+/* NewCompoundPreprocessor creates a new CompoundPreprocessor with the
+provided extension to DataPreprocessor mapping */
+func NewCompoundPreprocessor(extensionMap map[string]DataPreprocessor) *CompoundPreprocessor {
+  return &CompoundPreprocessor{
+    extensionMap: extensionMap,
+  }
+}
+
+// IngestMedia routes to the correct preprocessor and delegates the IngestMedia call
+func (c *CompoundPreprocessor) IngestMedia(url string) (MediaIngest, error) {
+  ext := filepath.Ext(strings.TrimSpace(url))
+  preprocessor, ok := c.extensionMap[ext]
+  if !ok {
+    return MediaIngest{}, fmt.Errorf("Failed to find proper preprocessor for %s", url)
+  }
+  return preprocessor.IngestMedia(url)
+}
+
+// RawPreprocessor implements DataPreprocessor for raw media files(ex. mp4)
+type RawPreprocessor struct {
   outputDir string
-  generateUniqueID func(string) string
 }
 
-// CreateMediaResources returns the filepath of the downloaded raw media file
-func (r *RawDataPreprocessor) CreateMediaResources(fileURL string) (MediaMetadata, error) {
+func NewRawPreprocessor(workingPath string) *RawPreprocessor {
+  return &RawPreprocessor{
+    outputDir: workingPath,
+  }
+}
+
+// IngestMedia returns the filepath of the downloaded raw media file
+func (r *RawPreprocessor) IngestMedia(fileURL string) (MediaIngest, error) {
   // Download single media file
-  mediaFName := path.Join(r.outputDir, r.generateUniqueID(fileURL))
-  outFile, err := os.Create(mediaFName)
+  outFile, err := ioutil.TempFile(r.outputDir, ingestFilePattern)
   if err != nil {
-    return MediaMetadata{}, fmt.Errorf("Failed to create file %s: %w", mediaFName, err)
+    return MediaIngest{}, fmt.Errorf("Failed to create ingest file: %w", err)
   }
 
   if err := downloadFile(outFile, fileURL); err != nil {
-    return MediaMetadata{}, fmt.Errorf("Failed to download %s to %s: %w", fileURL, mediaFName, err)
+    return MediaIngest{}, fmt.Errorf("Failed to download %s to %s: %w", fileURL, outFile.Name(), err)
   }
-  return MediaMetadata{
+  return MediaIngest{
     Type: RawMedia,
-    Result: mediaFName,
+    Result: rawMedia{
+      URL: fileURL,
+      File: outFile.Name(),
+    },
   }, nil
 }
 
-// HLSDataPreprocessor implements DataPreprocessor for HLS Manifest Files
-type HLSDataPreprocessor struct {
+// HLSPreprocessor implements DataPreprocessor for HLS Manifest Files
+type HLSPreprocessor struct {
   outputDir string
-  generateUniqueID func(string) string
 }
 
-func (r *HLSDataPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Playlist) (stream, error) {
+func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Playlist) (stream, error) {
   hlsSegments := playlist.Segments()
   genericSegments := make([]segment, 0, len(hlsSegments))
   for i, hlsSegment := range hlsSegments {
     segmentURL := path.Join(basePath, hlsSegment.Segment)
-    systemFName := path.Join(r.outputDir, r.generateUniqueID(segmentURL))
-
-    segmentFile, err := os.Create(systemFName)
+    segmentFile, err := ioutil.TempFile(r.outputDir, ingestFilePattern)
     if err != nil {
-      return stream{}, fmt.Errorf("Failed to create system file %s: %w", systemFName, err)
+      return stream{}, fmt.Errorf("Failed to create ingest file: %w", err)
     }
+
     if err := downloadFile(segmentFile, segmentURL); err != nil {
       return stream{}, fmt.Errorf("Failed to download segment %s: %w", segmentURL, err)
     }
@@ -79,7 +114,7 @@ func (r *HLSDataPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u
       Index: i,
       URL: segmentURL,
       FunctionalID: "",
-      File: systemFName,
+      File: segmentFile.Name(),
     })
   }
 
@@ -89,7 +124,7 @@ func (r *HLSDataPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u
   }, nil
 }
 
-func (r *HLSDataPreprocessor) getManifest(manifestURL string) (*m3u8.Playlist, error) {
+func (r *HLSPreprocessor) getManifest(manifestURL string) (*m3u8.Playlist, error) {
   // Download manifest file
   outFile, err := ioutil.TempFile("", "tmp_manifest_*.m3u8")
   if err != nil {
@@ -109,13 +144,13 @@ func (r *HLSDataPreprocessor) getManifest(manifestURL string) (*m3u8.Playlist, e
   return playlist, err
 }
 
-/* CreateMediaResources fetches all data associated with manifestURL and creates an internal
+/* Ingest fetches all data associated with manifestURL and creates an internal
 manifest object to represent the VOD media map and point to appropriate system file locations */
-func (r *HLSDataPreprocessor) CreateMediaResources(manifestURL string) (MediaMetadata, error) {
+func (r *HLSPreprocessor) IngestMedia(manifestURL string) (MediaIngest, error) {
   // Fetch and parse master manifest
   masterManifest, err := r.getManifest(manifestURL)
   if err != nil {
-    return MediaMetadata{}, fmt.Errorf("Failed to download manifest %s: %w", manifestURL, err)
+    return MediaIngest{}, fmt.Errorf("Failed to download manifest %s: %w", manifestURL, err)
   }
 
   baseURL := path.Dir(manifestURL)
@@ -127,13 +162,13 @@ func (r *HLSDataPreprocessor) CreateMediaResources(manifestURL string) (MediaMet
       subManifestURL := path.Join(baseURL, playlist.URI)
       subManifest, err := r.getManifest(subManifestURL)
       if err != nil {
-        return MediaMetadata{}, fmt.Errorf("Failed to retrieve sub manifest %s: %w", subManifestURL, err)
+        return MediaIngest{}, fmt.Errorf("Failed to retrieve sub manifest %s: %w", subManifestURL, err)
       }
 
       // generate internal 'stream' object based on sub manifest
       mediaStream, err := r.parseStreamPlaylist(path.Dir(subManifestURL), subManifest)
       if err != nil {
-        return MediaMetadata{}, fmt.Errorf("Failed to parse sub manifest %s: %w", subManifestURL, err)
+        return MediaIngest{}, fmt.Errorf("Failed to parse sub manifest %s: %w", subManifestURL, err)
       }
 
       // complete and store processed stream
@@ -144,7 +179,7 @@ func (r *HLSDataPreprocessor) CreateMediaResources(manifestURL string) (MediaMet
     // generate internal 'stream' object for single manifest
     mediaStream, err := r.parseStreamPlaylist(baseURL, masterManifest)
     if err != nil {
-      return MediaMetadata{}, fmt.Errorf("Failed to parse manifest %s: %w", manifestURL, err)
+      return MediaIngest{}, fmt.Errorf("Failed to parse manifest %s: %w", manifestURL, err)
     }
 
     // store stream under default URL name to indicate no sub manifests
@@ -153,7 +188,7 @@ func (r *HLSDataPreprocessor) CreateMediaResources(manifestURL string) (MediaMet
   }
 
   // Create and return preprocess result
-  return MediaMetadata{
+  return MediaIngest{
     Type: VODMedia,
     Result: manifest{
       URL: manifestURL,
