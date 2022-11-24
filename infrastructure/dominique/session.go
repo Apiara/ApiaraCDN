@@ -47,7 +47,6 @@ as agreed upon by both the client and the endpoint */
 type SessionDescription struct {
   SessionID string
   FunctionalID string
-  URL string
   ClientIP string
   EndpointIP string
   EndpointIdentity string

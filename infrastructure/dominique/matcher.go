@@ -64,12 +64,10 @@ func (t *TimedSessionProcessor) collectUnmatchedReports() {
 }
 
 // NewTimedSessionProcessor creates a new TimedSessionProcessor
-func NewTimedSessionProcessor(timeout time.Duration, timeseries TimeseriesDB,
-  finder urlIndex) *TimedSessionProcessor {
+func NewTimedSessionProcessor(timeout time.Duration, timeseries TimeseriesDB) *TimedSessionProcessor {
   processor := &TimedSessionProcessor{
     reportMatchTimeout: timeout,
     timeseries: timeseries,
-    finder: finder,
     mutex: &sync.Mutex{},
     activeSessions: make(map[string]*processorEntry),
   }
@@ -90,7 +88,6 @@ func (t *TimedSessionProcessor) createSessionDescription(client *ClientReport,
   desc := SessionDescription{
     SessionID: client.SessionID,
     FunctionalID: client.FunctionalID,
-    URL: "",
     ClientIP: client.IP,
     EndpointIP: endpoint.IP,
     EndpointIdentity: endpoint.Identity,
@@ -108,11 +105,6 @@ func (t *TimedSessionProcessor) createSessionDescription(client *ClientReport,
     return SessionDescription{}, conflictErr
   }
 
-  url, err := t.finder.functionalIDToURL(desc.FunctionalID)
-  if err != nil {
-    return SessionDescription{}, err
-  }
-  desc.URL = url
   return desc, nil
 }
 
