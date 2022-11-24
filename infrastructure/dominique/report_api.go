@@ -7,8 +7,8 @@ import (
 )
 
 // Helpers to pass to reportHandler
-func emptyClientReport() Report { return &ClientReport{} }
-func emptyEndpointReport() Report { return &EndpointReport{} }
+func getEmptyClientReport() Report { return &ClientReport{} }
+func getEmptyEndpointReport() Report { return &EndpointReport{} }
 
 // Generate report handler for any 'Report' returned from createReport
 func reportHandler(createReport func() Report, matcher SessionProcessor) func(resp http.ResponseWriter, req *http.Request) {
@@ -30,7 +30,7 @@ func reportHandler(createReport func() Report, matcher SessionProcessor) func(re
 // StartReportingAPI starts the API for clients and endpoints to report sessions
 func StartReportingAPI(listenAddr string, matcher SessionProcessor) {
   reportingAPI := http.NewServeMux()
-  reportingAPI.HandleFunc("/report/client", reportHandler(emptyClientReport, matcher))
-  reportingAPI.HandleFunc("/report/client", reportHandler(emptyEndpointReport, matcher))
+  reportingAPI.HandleFunc("/report/client", reportHandler(getEmptyClientReport, matcher))
+  reportingAPI.HandleFunc("/report/client", reportHandler(getEmptyEndpointReport, matcher))
   log.Fatal(http.ListenAndServe(listenAddr, reportingAPI))
 }

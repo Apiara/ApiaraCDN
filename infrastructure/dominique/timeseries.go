@@ -32,12 +32,12 @@ type InfluxTimeseriesDB struct {
   reportsCtx context.Context
   sessionsClient influxAPI.WriteAPIBlocking
   reportsClient influxAPI.WriteAPIBlocking
-  finder urlIndex
+  finder URLIndex
 }
 
 /* NewInfluxTimeseriesDB creates a new instance of InfluxTimeseriesDB pointing
 at the provided dbURL influx database authenticated with dbToken */
-func NewInfluxTimeseriesDB(dbURL, dbToken string) *InfluxTimeseriesDB {
+func NewInfluxTimeseriesDB(dbURL, dbToken string, finder URLIndex) *InfluxTimeseriesDB {
   client := influxdb2.NewClient(dbURL, dbToken)
 
   return &InfluxTimeseriesDB{
@@ -46,12 +46,13 @@ func NewInfluxTimeseriesDB(dbURL, dbToken string) *InfluxTimeseriesDB {
     reportsCtx: context.Background(),
     sessionsClient: client.WriteAPIBlocking(OrganizationName, SessionsBucket),
     reportsClient: client.WriteAPIBlocking(OrganizationName, ReportsBucket),
+    finder: finder,
   }
 }
 
 // WriteDescription writes a session description to the SessionsBucket
 func (ts *InfluxTimeseriesDB) WriteDescription(t time.Time, desc SessionDescription) error {
-  url, err := ts.finder.functionalIDToURL(desc.FunctionalID)
+  url, err := ts.finder.FunctionalIDToURL(desc.FunctionalID)
   if err != nil {
     return fmt.Errorf("Failed to associate functional id with url %s: %w", desc.FunctionalID, err)
   }
@@ -67,6 +68,7 @@ func (ts *InfluxTimeseriesDB) WriteDescription(t time.Time, desc SessionDescript
     "endpoint_ip": desc.EndpointIP,
     "bytes_recv": desc.BytesRecv,
     "bytes_needed": desc.BytesNeeded,
+    "agree": desc.Agree,
   }
 
   entry := influxdb2.NewPoint("session", tags, fields, t)
@@ -78,7 +80,7 @@ func (ts *InfluxTimeseriesDB) WriteDescription(t time.Time, desc SessionDescript
 
 // WriteReport writes a Report to the InfluxDB ReportsBucket
 func (ts *InfluxTimeseriesDB) WriteReport(t time.Time, r Report) error {
-  url, err := ts.finder.functionalIDToURL(r.GetFunctionalID())
+  url, err := ts.finder.FunctionalIDToURL(r.GetFunctionalID())
   if err != nil {
     return fmt.Errorf("Failed to associate functional id with url %s: %w", r.GetFunctionalID(), err)
   }

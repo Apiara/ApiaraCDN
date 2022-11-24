@@ -3,10 +3,8 @@ package cyprus
 import (
   "os"
   "encoding/json"
-  "encoding/hex"
   "context"
   "github.com/go-redis/redis/v8"
-  "crypto/sha256"
   "path"
   "io/ioutil"
   "fmt"
@@ -16,18 +14,6 @@ import (
 
 const (
   publishedFilePerms = 0644
-)
-
-const (
-  // Key mapping FIDs to Plaintext URLs
-  redisFunctionalToURLKey = "cyprus:functional:"
-
-  /* Key mapping Safe URLs to FIDs. Note URLs must be encoded in a safe format
-  that doesn't include special characters, specifically ":" */
-  redisURLToFunctionalKey = "cyprus:url:"
-
-  // Key mapping Safe URLs to a set of all filesystem resources created under URL
-  redisURLToResourcesKey = "cyprus:resources:"
 )
 
 /* StorageManager represents an object that can publish the output of a MediaDigest
@@ -80,21 +66,13 @@ func NewRedisStorageManager(redisAddr string, storageDir string) (*RedisStorageM
   }, nil
 }
 
-/* Converts URL with possible unsafe characters
-to a unique hex string 24 bytes long */
-func urlToSafeName(url string) string {
-  sum := sha256.Sum224([]byte(url))
-  safe := hex.EncodeToString(sum[:])
-  return safe
-}
-
 // publishManifest publishes digested manifest resources to the appropriate data stores
 func (r *RedisStorageManager) publishManifest(mediaMap manifest, key []byte) ([]string, error) {
   // Create list of all created resources
   resources := make([]string, 0)
 
   // Publish symmetric key
-  urlFname := urlToSafeName(mediaMap.URL)
+  urlFname := infra.URLToSafeName(mediaMap.URL)
   keyFname := path.Join(r.keyDir, urlFname)
   if err := ioutil.WriteFile(keyFname, key, publishedFilePerms); err != nil {
     return resources, err
@@ -145,7 +123,7 @@ func (r *RedisStorageManager) publishRawMedia(media rawMedia, key []byte) ([]str
   resources := make([]string, 0)
 
   // Publish symmetric key
-  urlFname := urlToSafeName(media.URL)
+  urlFname := infra.URLToSafeName(media.URL)
   keyFname := path.Join(r.keyDir, urlFname)
   if err := ioutil.WriteFile(keyFname, key, publishedFilePerms); err != nil {
     return resources, err
@@ -198,21 +176,21 @@ func (r *RedisStorageManager) purgeFiles(resources []string) {
 filesystem resources and key mappings for the URL/FID keys */
 func (r *RedisStorageManager) indexCreatedResources(url string, fid string, resources []string) error {
   // Create FunctionalID to URL mapping
-  fidMapKey := redisFunctionalToURLKey + fid
+  fidMapKey := infra.RedisFunctionalToURLKey + fid
   err := r.rdb.Set(r.ctx, fidMapKey, url, 0).Err()
   if err != nil {
     return fmt.Errorf("Failed to add functional id to url mapping: %w", err)
   }
 
   // Create URL to FunctionalID mapping
-  urlKey := urlToSafeName(url)
-  urlMapKey := redisURLToFunctionalKey + urlKey
+  urlKey := infra.URLToSafeName(url)
+  urlMapKey := infra.RedisURLToFunctionalKey + urlKey
   if err := r.rdb.Set(r.ctx, urlMapKey, fid, 0).Err(); err != nil {
     return fmt.Errorf("Failed to add url to functional id mapping: %w", err)
   }
 
   // Create URL to Resources mapping
-  resourceMapKey := redisURLToResourcesKey + urlKey
+  resourceMapKey := infra.RedisURLToResourcesKey + urlKey
   for _, resource := range resources {
     val, err := r.rdb.SAdd(r.ctx, resourceMapKey, resource).Result()
     if err != nil {
@@ -266,8 +244,8 @@ func (r *RedisStorageManager) Publish(digest MediaDigest) error {
 as well as deletes all associated redis state entries */
 func (r *RedisStorageManager) purge(url string, fid string) error {
   // Purge resource files
-  urlKey := urlToSafeName(url)
-  resourceMapKey := redisURLToResourcesKey + urlKey
+  urlKey := infra.URLToSafeName(url)
+  resourceMapKey := infra.RedisURLToResourcesKey + urlKey
   resources, err := r.rdb.SMembers(r.ctx, resourceMapKey).Result()
   if err == redis.Nil {
     return fmt.Errorf("No resources found under URL %s", url)
@@ -282,8 +260,8 @@ func (r *RedisStorageManager) purge(url string, fid string) error {
   }
 
   // Delete key mappings
-  urlMapKey := redisURLToFunctionalKey + urlKey
-  fidMapKey := redisFunctionalToURLKey + fid
+  urlMapKey := infra.RedisURLToFunctionalKey + urlKey
+  fidMapKey := infra.RedisFunctionalToURLKey + fid
 
   if err = r.rdb.Del(r.ctx, urlMapKey).Err(); err != nil {
     return fmt.Errorf("Failed to remove url to functional ID mapping: %w", err)
@@ -297,8 +275,8 @@ func (r *RedisStorageManager) purge(url string, fid string) error {
 // PurgeByURL allows purging by URL key
 func (r *RedisStorageManager) PurgeByURL(url string) error {
   // Get Functional ID
-  urlKey := urlToSafeName(url)
-  urlMapKey := redisURLToFunctionalKey + urlKey
+  urlKey := infra.URLToSafeName(url)
+  urlMapKey := infra.RedisURLToFunctionalKey + urlKey
   fid, err := r.rdb.Get(r.ctx, urlMapKey).Result()
   if err != nil {
     return fmt.Errorf("Failed to get URL to Functional ID key: %w", err)
@@ -310,7 +288,7 @@ func (r *RedisStorageManager) PurgeByURL(url string) error {
 // PurgeByFunctionalID allows purging by functional ID
 func (r *RedisStorageManager) PurgeByFunctionalID(fid string) error {
   // Get URL
-  fidMapKey := redisFunctionalToURLKey + fid
+  fidMapKey := infra.RedisFunctionalToURLKey + fid
   url, err := r.rdb.Get(r.ctx, fidMapKey).Result()
   if err != nil {
     return fmt.Errorf("Failed to get URL to Functional ID key: %w", err)

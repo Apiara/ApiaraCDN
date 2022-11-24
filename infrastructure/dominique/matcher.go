@@ -8,13 +8,9 @@ import (
 )
 
 const (
+  // Frequency at which active reports are checked to see if they've timed out
   ReportCollectionFrequency = time.Minute
 )
-
-// urlIndex allows looking up what URL a Functional ID is linked to
-type urlIndex interface {
-  functionalIDToURL(string) (string, error)
-}
 
 /* SessionProcessor represents an object that can ingest session reports
 and properly match and store the deduced results */
@@ -34,7 +30,7 @@ processing to prevent OOM */
 type TimedSessionProcessor struct {
   reportMatchTimeout time.Duration
   timeseries TimeseriesDB
-  finder urlIndex
+  finder URLIndex
   mutex *sync.Mutex
   activeSessions map[string]*processorEntry
 }
@@ -46,13 +42,20 @@ func (t *TimedSessionProcessor) collectUnmatchedReports() {
 
   for sid, entry := range t.activeSessions {
     if time.Since(entry.firstSeen) > t.reportMatchTimeout {
-      if entry.clientReport != nil {
+      if entry.clientReport != nil && entry.endpointReport != nil {
+        /* Try to process complete entries here for a final time if previous
+        processing failed. If fails again, remove from active sessions without
+        logging */
+        err := t.ingestSessionEntry(entry)
+        if err != nil {
+          log.Println(err)
+        }
+      } else if entry.clientReport != nil {
         err := t.timeseries.WriteReport(entry.firstSeen, entry.clientReport)
         if err != nil {
           log.Println(err)
         }
-      }
-      if entry.endpointReport != nil {
+      } else if entry.endpointReport != nil {
         err := t.timeseries.WriteReport(entry.firstSeen, entry.endpointReport)
         if err != nil {
           log.Println(err)
@@ -93,6 +96,7 @@ func (t *TimedSessionProcessor) createSessionDescription(client *ClientReport,
     EndpointIdentity: endpoint.Identity,
     BytesRecv: client.BytesRecv,
     BytesNeeded: client.BytesNeeded,
+    Agree: true,
   }
 
   if client.SessionID != endpoint.SessionID {
@@ -153,6 +157,9 @@ func (t *TimedSessionProcessor) AddReport(r Report) error {
   // Attempt to match
   if entry.clientReport != nil && entry.endpointReport != nil {
     if err := t.ingestSessionEntry(entry); err != nil {
+      /* If fails, will get picked up again by the scheduled
+      collectUnmatchedReports routine for a second try at processing
+      before throwing the entry away for good*/
       return fmt.Errorf("Failed to process session reports: %w", err)
     }
     delete(t.activeSessions, sid)

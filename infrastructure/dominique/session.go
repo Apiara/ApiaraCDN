@@ -52,4 +52,5 @@ type SessionDescription struct {
   EndpointIdentity string
   BytesRecv int64
   BytesNeeded int64
+  Agree bool
 }

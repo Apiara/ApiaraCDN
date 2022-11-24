@@ -15,7 +15,7 @@ listen_port = int
 */
 
 type config struct {
-  RedisDBAddress string `toml:"redis_addr"`
+  RedisDBAddress string `toml:"redis_address"`
   Port int `toml:"listen_port"`
 }
 
