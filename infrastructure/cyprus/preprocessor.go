@@ -63,11 +63,13 @@ func (c *CompoundPreprocessor) IngestMedia(url string) (MediaIngest, error) {
 // RawPreprocessor implements DataPreprocessor for raw media files(ex. mp4)
 type RawPreprocessor struct {
   outputDir string
+  retrieveFile func(*os.File, string) error
 }
 
 func NewRawPreprocessor(workingPath string) *RawPreprocessor {
   return &RawPreprocessor{
     outputDir: workingPath,
+    retrieveFile: downloadFile,
   }
 }
 
@@ -78,8 +80,9 @@ func (r *RawPreprocessor) IngestMedia(fileURL string) (MediaIngest, error) {
   if err != nil {
     return MediaIngest{}, fmt.Errorf("Failed to create ingest file: %w", err)
   }
+  defer outFile.Close()
 
-  if err := downloadFile(outFile, fileURL); err != nil {
+  if err := r.retrieveFile(outFile, fileURL); err != nil {
     return MediaIngest{}, fmt.Errorf("Failed to download %s to %s: %w", fileURL, outFile.Name(), err)
   }
   return MediaIngest{
@@ -94,6 +97,15 @@ func (r *RawPreprocessor) IngestMedia(fileURL string) (MediaIngest, error) {
 // HLSPreprocessor implements DataPreprocessor for HLS Manifest Files
 type HLSPreprocessor struct {
   outputDir string
+  retrieveFile func(*os.File, string) error
+}
+
+// NewHLSPreprocessor creates a new HLSPreprocessor where outputs are stored at workingDir
+func NewHLSPreprocessor(workingDir string) *HLSPreprocessor {
+  return &HLSPreprocessor{
+    outputDir: workingDir,
+    retrieveFile: downloadFile,
+  }
 }
 
 func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Playlist) (stream, error) {
@@ -106,9 +118,11 @@ func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Pl
       return stream{}, fmt.Errorf("Failed to create ingest file: %w", err)
     }
 
-    if err := downloadFile(segmentFile, segmentURL); err != nil {
+    if err := r.retrieveFile(segmentFile, segmentURL); err != nil {
+      segmentFile.Close()
       return stream{}, fmt.Errorf("Failed to download segment %s: %w", segmentURL, err)
     }
+    segmentFile.Close()
 
     genericSegments = append(genericSegments, segment{
       Index: i,
@@ -130,9 +144,11 @@ func (r *HLSPreprocessor) getManifest(manifestURL string) (*m3u8.Playlist, error
   if err != nil {
     return nil, fmt.Errorf("Failed to create temporary file: %w", err)
   }
-  if err = downloadFile(outFile, manifestURL); err != nil {
+  if err = r.retrieveFile(outFile, manifestURL); err != nil {
+    outFile.Close()
     return nil, fmt.Errorf("Failed to download manifest at %s: %w", manifestURL, err)
   }
+  outFile.Close()
 
   // Parse manifest file
   playlist, err := m3u8.ReadFile(outFile.Name())

@@ -11,6 +11,7 @@ import (
   "io/ioutil"
   "fmt"
   "log"
+  infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
 const (
@@ -34,7 +35,7 @@ to the data stores for use by client and endpoint resource retrieval APIs */
 type StorageManager interface {
   Publish(digest MediaDigest) error
   PurgeByURL(url string) error
-  PurgeByFID(fid string) error
+  PurgeByFunctionalID(fid string) error
 }
 
 /* RedisStorageManager implements StorageManager and uses Redis
@@ -46,6 +47,37 @@ type RedisStorageManager struct {
   dataDir string
   partialMapDir string
   completeMapDir string
+}
+
+/* NewRedisStorageManager creates a new RedisStorageManager where all
+data is stored in subdirectories of storageDir and indexed in redis */
+func NewRedisStorageManager(redisAddr string, storageDir string) (*RedisStorageManager, error) {
+  client := redis.NewClient(&redis.Options{
+    Addr: redisAddr,
+    Password: "",
+    DB: 0,
+  })
+
+  dirs := []string{
+    path.Join(storageDir, infra.AESKeyStorageDir),
+    path.Join(storageDir, infra.CryptDataStorageDir),
+    path.Join(storageDir, infra.PartialMapDir),
+    path.Join(storageDir, infra.CompleteMediaMapDir),
+  }
+  for _, dir := range dirs {
+    if err := os.MkdirAll(dir, os.ModeDir); err != nil {
+      return nil, fmt.Errorf("Failed to make dir %s: %w", dir, err)
+    }
+  }
+
+  return &RedisStorageManager{
+    rdb: client,
+    ctx: context.Background(),
+    keyDir: dirs[0],
+    dataDir: dirs[1],
+    partialMapDir: dirs[2],
+    completeMapDir: dirs[3],
+  }, nil
 }
 
 /* Converts URL with possible unsafe characters

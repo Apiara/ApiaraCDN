@@ -7,9 +7,15 @@ import (
   "strconv"
   "flag"
 )
+/*
+Config Format
+--------------
+redis_address = string
+listen_port = int
+*/
 
 type config struct {
-  RedisDBAddress string `toml:"redis_db"`
+  RedisDBAddress string `toml:"redis_addr"`
   Port int `toml:"listen_port"`
 }
 

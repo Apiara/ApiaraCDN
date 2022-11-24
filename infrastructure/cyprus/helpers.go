@@ -82,8 +82,6 @@ func completeToPartialRawMedia(media rawMedia) partialRawMedia {
 
 // helper func to download files from the internet
 func downloadFile(outFile *os.File, url string) error {
-  defer outFile.Close()
-
   resp, err := http.Get(url)
   if err != nil {
     return err

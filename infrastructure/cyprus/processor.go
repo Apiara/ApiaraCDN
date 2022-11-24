@@ -41,6 +41,17 @@ type AESDataProcessor struct {
   outputDir string
 }
 
+// NewAESDataProcessor creates a new AESDataProcessor with the specified key size
+func NewAESDataProcessor(keySize int, workingDir string) (*AESDataProcessor, error) {
+  if keySize != 16 && keySize != 24 && keySize != 32 {
+    return nil, fmt.Errorf("Failed to create AESDataProcessor. Invalid Key Size %d", keySize)
+  }
+  return &AESDataProcessor{
+    keySize: keySize,
+    outputDir: workingDir,
+  }, nil
+}
+
 func generateRandomBytes(size int) ([]byte, error) {
   key := make([]byte, size)
   _, err := rand.Read(key)
@@ -82,7 +93,7 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
   defer os.Remove(fname)
 
   // Generate initialization vector for media encryption
-  iv, err := generateRandomBytes(a.keySize)
+  iv, err := generateRandomBytes(aes.BlockSize)
   if err != nil {
     return "", "", err
   }
@@ -128,7 +139,7 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
 
 func (a *AESDataProcessor) digestRawMedia(block cipher.Block, media rawMedia) (rawMedia, error) {
   // Create stream cipher for use in creating Functional ID
-  fidIV, err := generateRandomBytes(a.keySize)
+  fidIV, err := generateRandomBytes(aes.BlockSize)
   if err != nil {
     return rawMedia{}, err
   }
@@ -146,7 +157,7 @@ manifest and returns a manifest with the File pointers pointing to the encrypted
 data */
 func (a *AESDataProcessor) digestManifest(block cipher.Block, mediaMap manifest) (manifest, error) {
   // Create stream cipher used to assist in creation of Functional IDs
-  fidIV, err := generateRandomBytes(a.keySize)
+  fidIV, err := generateRandomBytes(aes.BlockSize)
   if err != nil {
     return manifest{}, err
   }
@@ -154,16 +165,22 @@ func (a *AESDataProcessor) digestManifest(block cipher.Block, mediaMap manifest)
 
   // Modify manifest with generate functional IDs and new encrypted segment locations
   mediaMap.FunctionalID = generateFunctionalID(mediaMap.URL, fidCipher)
+  completeStreams := make([]stream, 0)
   for _, mediaStream := range mediaMap.Streams {
     mediaStream.FunctionalID = generateFunctionalID(mediaStream.URL, fidCipher)
+    completeSegments := make([]segment, 0)
     for _, mediaSegment := range mediaStream.Segments {
       mediaSegment.FunctionalID = generateFunctionalID(mediaSegment.URL, fidCipher)
       mediaSegment.File, mediaSegment.Checksum, err = a.digestFile(block, mediaSegment.File)
       if err != nil {
         return manifest{}, err
       }
+      completeSegments = append(completeSegments, mediaSegment)
     }
+    mediaStream.Segments = completeSegments
+    completeStreams = append(completeStreams, mediaStream)
   }
+  mediaMap.Streams = completeStreams
   return mediaMap, nil
 }
 

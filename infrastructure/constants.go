@@ -11,3 +11,10 @@ const (
   FailedProcessing ProcessingStatus = "failed"
   FinishedProcessing ProcessingStatus = "finished"
 )
+
+const (
+  AESKeyStorageDir = "/aes/key/"
+  CryptDataStorageDir = "/cryptdata/"
+  PartialMapDir = "/mediamap/partial/"
+  CompleteMediaMapDir = "/mediamap/complete/"
+)
