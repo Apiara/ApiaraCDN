@@ -7,7 +7,7 @@ import (
   "log"
 )
 
-const (
+var (
   // Frequency at which active reports are checked to see if they've timed out
   ReportCollectionFrequency = time.Minute
 )

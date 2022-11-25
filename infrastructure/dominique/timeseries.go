@@ -25,6 +25,22 @@ type TimeseriesDB interface {
   WriteDescription(t time.Time, desc SessionDescription) error
 }
 
+// MockTimeseriesDB is a testing mock for TimeseriesDB
+type MockTimeseriesDB struct{
+  reportCount int
+  descCount int
+}
+
+func (m *MockTimeseriesDB) WriteReport(time.Time, Report) error {
+  m.reportCount++
+  return nil
+}
+
+func (m *MockTimeseriesDB) WriteDescription(time.Time, SessionDescription) error {
+  m.descCount++
+  return nil
+}
+
 // InfluxTimeseriesDB implements TimeseriesDB using InfluxDB2
 type InfluxTimeseriesDB struct {
   client influxdb2.Client

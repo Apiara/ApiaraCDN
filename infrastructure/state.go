@@ -7,14 +7,14 @@ import (
 
 const (
   // State Key mapping FIDs to Plaintext URLs
-  RedisFunctionalToURLKey = "cyprus:functional:"
+  RedisFunctionalToURLKey = "content:functional:"
 
   /* State Key mapping Safe URLs to FIDs. Note URLs must be encoded in a safe format
   that doesn't include special characters, specifically ":" */
-  RedisURLToFunctionalKey = "cyprus:url:"
+  RedisURLToFunctionalKey = "content:url:"
 
   // State Key mapping Safe URLs to a set of all filesystem resources created under URL
-  RedisURLToResourcesKey = "cyprus:resources:"
+  RedisURLToResourcesKey = "content:resources:"
 )
 
 /* URLToSafeName converts URL with possible unsafe

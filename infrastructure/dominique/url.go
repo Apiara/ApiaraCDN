@@ -12,13 +12,19 @@ type URLIndex interface {
   FunctionalIDToURL(string) (string, error)
 }
 
+// MockURLIndex is a testing mock for URLIndex
+type MockURLIndex struct{}
+func (m *MockURLIndex) FunctionalIDToURL(s string) (string, error) {
+  return "url_" + s, nil
+}
+
 // RedisURLIndex looks up the URL info in the redis microservice state database
 type RedisURLIndex struct {
   rdb *redis.Client
   ctx context.Context
 }
 
-// newRedisURLIndex creates a new redisURLIndex
+// NewRedisURLIndex creates a new redisURLIndex
 func NewRedisURLIndex(addr string) *RedisURLIndex {
   client := redis.NewClient(&redis.Options{
     Addr: addr,
@@ -32,7 +38,7 @@ func NewRedisURLIndex(addr string) *RedisURLIndex {
   }
 }
 
-// functionalIDToURL attempts to map a FID to URL
+// FunctionalIDToURL attempts to map a FID to URL
 func (r *RedisURLIndex) FunctionalIDToURL(fid string) (string, error) {
   urlLookupKey := infra.RedisFunctionalToURLKey + fid
   url, err := r.rdb.Get(r.ctx, urlLookupKey).Result()
