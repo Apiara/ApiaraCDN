@@ -59,8 +59,8 @@ func NewEndpointConnectionManager() *EndpointConnectionManager {
 	}
 }
 
-// AddCategory creates a new connection category
-func (m *EndpointConnectionManager) AddCategory(id string) error {
+// CreateCategory creates a new connection category
+func (m *EndpointConnectionManager) CreateCategory(id string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 

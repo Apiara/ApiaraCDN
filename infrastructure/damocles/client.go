@@ -32,6 +32,14 @@ type NeedClientServicer struct {
 	tracker     NeedTracker
 }
 
+// NewNeedClientServicer returns a NeedClientServicer
+func NewNeedClientServicer(connStore ConnectionManager, tracker NeedTracker) *NeedClientServicer {
+	return &NeedClientServicer{
+		connections: connStore,
+		tracker:     tracker,
+	}
+}
+
 /*
 MatchAndSignal find an endpoint with the appropriate data for client
 and performs signaling to assist in the establishing of a p2p connection

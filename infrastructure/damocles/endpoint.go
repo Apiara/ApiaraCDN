@@ -30,8 +30,16 @@ JSONEndpointAllocator implements EndpointAllocator
 using JSON messages for communication
 */
 type NeedEndpointAllocator struct {
-	tracker     NeedTracker
 	connections ConnectionManager
+	tracker     NeedTracker
+}
+
+// NewNeedEndpointAllocator returns a new NeedEndpointAllocator
+func NewNeedEndpointAllocator(connStore ConnectionManager, tracker NeedTracker) *NeedEndpointAllocator {
+	return &NeedEndpointAllocator{
+		connections: connStore,
+		tracker:     tracker,
+	}
 }
 
 // PlaceEndpoint places the endpoint in a job queue based on content held

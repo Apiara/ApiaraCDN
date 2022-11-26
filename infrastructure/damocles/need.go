@@ -30,6 +30,16 @@ type DesperationTracker struct {
 	mutex       *sync.Mutex
 }
 
+// NewDesperationTracker returns a new DesperationTracker
+func NewDesperationTracker(timeSlice time.Duration) *DesperationTracker {
+	return &DesperationTracker{
+		activeSlice: timeSlice,
+		lastReset:   time.Now(),
+		desperation: make(map[string]int64),
+		mutex:       &sync.Mutex{},
+	}
+}
+
 // reset sets every key to 0 if the time has moved out of the active time slice
 func (d *DesperationTracker) reset() {
 	if time.Since(d.lastReset) > d.activeSlice {

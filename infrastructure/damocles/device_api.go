@@ -7,11 +7,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type CategoryUpdater interface {
-	CreateCategory(string) error
-	DelCategory(string) error
-}
-
 func handleAPIRequest(upgrader websocket.Upgrader, handler func(Websocket) error) func(http.ResponseWriter, *http.Request) {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		conn, err := upgrader.Upgrade(resp, req, nil)
@@ -31,8 +26,7 @@ func handleAPIRequest(upgrader websocket.Upgrader, handler func(Websocket) error
 StartSignalingAPI starts API for clients to ask for a signaling partner
 and endpoints to be put in a signaling job queue
 */
-func StartSignalingAPI(listenAddr string, updater CategoryUpdater,
-	servicer ClientServicer, allocator EndpointAllocator) {
+func StartSignalingAPI(listenAddr string, servicer ClientServicer, allocator EndpointAllocator) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:    4096,
 		WriteBufferSize:   4096,
