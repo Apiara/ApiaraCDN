@@ -25,18 +25,18 @@ type TimeseriesDB interface {
   WriteDescription(t time.Time, desc SessionDescription) error
 }
 
-// MockTimeseriesDB is a testing mock for TimeseriesDB
-type MockTimeseriesDB struct{
+// mockTimeseriesDB is a testing mock for TimeseriesDB
+type mockTimeseriesDB struct{
   reportCount int
   descCount int
 }
 
-func (m *MockTimeseriesDB) WriteReport(time.Time, Report) error {
+func (m *mockTimeseriesDB) WriteReport(time.Time, Report) error {
   m.reportCount++
   return nil
 }
 
-func (m *MockTimeseriesDB) WriteDescription(time.Time, SessionDescription) error {
+func (m *mockTimeseriesDB) WriteDescription(time.Time, SessionDescription) error {
   m.descCount++
   return nil
 }

@@ -29,7 +29,7 @@ func TestMasterContentManager(t *testing.T) {
   // Create resources
   cid := "cid"
   serverAddr := "server"
-  state := &MockContentState{make(map[string]struct{})}
+  state := &mockContentState{make(map[string]struct{})}
   manager := NewMasterContentManager(state, mockAPIAddr, mockAPIAddr)
 
   // Do Serve test

@@ -11,9 +11,9 @@ type ContentValidator interface {
   IsValid(cid string) (bool, error)
 }
 
-// MockContentValidator is a mock implementation for testing
-type MockContentValidator struct{}
-func (m *MockContentValidator) IsValid(string) (bool, error) { return true, nil }
+// mockContentValidator is a mock implementation for testing
+type mockContentValidator struct{}
+func (m *mockContentValidator) IsValid(string) (bool, error) { return true, nil }
 
 /* ContentValidatorClient implements ContentValidator by delegating the validity
 check to a standalone content rule manager service */

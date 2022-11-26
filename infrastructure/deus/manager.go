@@ -23,17 +23,17 @@ type ContentManager interface {
   Remove(cid string, serverAddr string, dynamic bool) error
 }
 
-// MockContentManager is a mock implementation for testing
-type MockContentManager struct{
+// mockContentManager is a mock implementation for testing
+type mockContentManager struct{
   serving map[string]bool
 }
 
-func (m *MockContentManager) Serve(cid string, server string, dyn bool) error {
+func (m *mockContentManager) Serve(cid string, server string, dyn bool) error {
   m.serving[cid + server] = dyn
   return nil
 }
 
-func (m *MockContentManager) Remove(cid string, server string, dyn bool) error {
+func (m *mockContentManager) Remove(cid string, server string, dyn bool) error {
   delete(m.serving, cid + server)
   return nil
 }

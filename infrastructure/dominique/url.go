@@ -12,9 +12,9 @@ type URLIndex interface {
   FunctionalIDToURL(string) (string, error)
 }
 
-// MockURLIndex is a testing mock for URLIndex
-type MockURLIndex struct{}
-func (m *MockURLIndex) FunctionalIDToURL(s string) (string, error) {
+// mockURLIndex is a testing mock for URLIndex
+type mockURLIndex struct{}
+func (m *mockURLIndex) FunctionalIDToURL(s string) (string, error) {
   return "url_" + s, nil
 }
 

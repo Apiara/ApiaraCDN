@@ -1,6 +1,7 @@
 package damocles
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -14,6 +15,26 @@ type Websocket interface {
 	SetReadDeadline(time.Time) error
 	IsActive() bool
 }
+
+// mockWebsocket is a testing mock for Websocket
+type mockWebsocket struct {
+	msgs       [][]byte
+	writeCount int
+}
+
+func (m *mockWebsocket) ReadMessage() (int, []byte, error) {
+	if len(m.msgs) != 0 {
+		msg := m.msgs[0]
+		m.msgs = m.msgs[1:]
+		return websocket.TextMessage, msg, nil
+	}
+	return -1, nil, fmt.Errorf("No message")
+}
+
+func (m *mockWebsocket) WriteMessage(int, []byte) error  { m.writeCount++; return nil }
+func (m *mockWebsocket) Close() error                    { return nil }
+func (m *mockWebsocket) SetReadDeadline(time.Time) error { return nil }
+func (m *mockWebsocket) IsActive() bool                  { return len(m.msgs) != 0 }
 
 type websocketMsg struct {
 	dataType int

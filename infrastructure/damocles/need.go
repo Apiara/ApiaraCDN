@@ -19,6 +19,18 @@ type NeedTracker interface {
 	AddAllocation(string) error
 }
 
+// mockNeedTracker is a testing mock for NeedTracker
+type mockNeedTracker struct {
+	requests  int
+	allocates int
+}
+
+func (m *mockNeedTracker) GetScore(string) (int64, error) { return 0, nil }
+func (m *mockNeedTracker) CreateCategory(string) error    { return nil }
+func (m *mockNeedTracker) DelCategory(string) error       { return nil }
+func (m *mockNeedTracker) AddRequest(string) error        { m.requests++; return nil }
+func (m *mockNeedTracker) AddAllocation(string) error     { m.allocates++; return nil }
+
 /*
 DesperationTracker is a NeedTracker implementation based on self-defined
 desperation where desperation is requests - allocations over an active time slice

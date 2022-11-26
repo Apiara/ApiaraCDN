@@ -6,9 +6,9 @@ import (
 )
 
 func TestThresholdPullDecider(t *testing.T) {
-  validator := &MockContentValidator{}
-  manager := &MockContentManager{make(map[string]bool)}
-  state := &MockContentState{map[string]struct{}{}}
+  validator := &mockContentValidator{}
+  manager := &mockContentManager{make(map[string]bool)}
+  state := &mockContentState{map[string]struct{}{}}
   threshold := 10
   interval := time.Second
 

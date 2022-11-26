@@ -10,7 +10,7 @@ func TestTimedSessionProcessor(t *testing.T) {
   // Create resources
   ReportCollectionFrequency = time.Second
   timeout := time.Second
-  timeseries := &MockTimeseriesDB{0, 0}
+  timeseries := &mockTimeseriesDB{0, 0}
   matcher := NewTimedSessionProcessor(timeout, timeseries)
 
   // Test good match

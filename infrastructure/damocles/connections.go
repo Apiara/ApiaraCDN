@@ -16,6 +16,16 @@ type ConnectionManager interface {
 	Pop(string) (Websocket, error)
 }
 
+// mockConnectionManager is a testing mock for ConnectionManager
+type mockConnectionManager struct{}
+
+func (m *mockConnectionManager) CreateCategory(string) error { return nil }
+func (m *mockConnectionManager) DelCategory(string) error    { return nil }
+func (m *mockConnectionManager) Put(string, Websocket) error { return nil }
+func (m *mockConnectionManager) Pop(string) (Websocket, error) {
+	return &mockWebsocket{}, nil
+}
+
 // thread safe list of websockets with add+remove methods
 type connectionList struct {
 	mutex *sync.Mutex

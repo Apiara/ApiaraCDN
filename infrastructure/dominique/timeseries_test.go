@@ -8,7 +8,7 @@ import (
 func TestInfluxTimeseriesDB(t *testing.T) {
   dbURL := "http://localhost:8086"
   dbToken := "tDJfcuaQ1jUCbQrH_nktJyTpjgN8-EUwj7-HQ0sMxFHdmcRQjASya7vj3doeqKW1F6QlGu76Fa0uMjHWrD5v6A=="
-  finder := &MockURLIndex{}
+  finder := &mockURLIndex{}
 
   timeseries := NewInfluxTimeseriesDB(dbURL, dbToken, finder)
 
