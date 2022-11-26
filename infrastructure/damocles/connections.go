@@ -10,7 +10,7 @@ ConnectionManager represents an object that can keep a list of different
 websocket connections under different category names
 */
 type ConnectionManager interface {
-	AddCategory(string) error
+	CreateCategory(string) error
 	DelCategory(string) error
 	Put(string, Websocket) error
 	Pop(string) (Websocket, error)
@@ -49,6 +49,14 @@ func (c *connectionList) getOldestActiveConnection() (Websocket, error) {
 type EndpointConnectionManager struct {
 	mutex   *sync.RWMutex
 	servers map[string]*connectionList
+}
+
+// NewEndpointConnectionManager returns a *EndpointConnectionManager
+func NewEndpointConnectionManager() *EndpointConnectionManager {
+	return &EndpointConnectionManager{
+		mutex:   &sync.RWMutex{},
+		servers: make(map[string]*connectionList),
+	}
 }
 
 // AddCategory creates a new connection category

@@ -29,13 +29,13 @@ type EndpointAllocator interface {
 JSONEndpointAllocator implements EndpointAllocator
 using JSON messages for communication
 */
-type JSONEndpointAllocator struct {
-	need        NeedTracker
+type NeedEndpointAllocator struct {
+	tracker     NeedTracker
 	connections ConnectionManager
 }
 
 // PlaceEndpoint places the endpoint in a job queue based on content held
-func (e *JSONEndpointAllocator) PlaceEndpoint(endpoint Websocket) error {
+func (e *NeedEndpointAllocator) PlaceEndpoint(endpoint Websocket) error {
 	// Read allocate request from endpoint
 	_, data, err := endpoint.ReadMessage()
 	if err != nil {
@@ -52,7 +52,7 @@ func (e *JSONEndpointAllocator) PlaceEndpoint(endpoint Websocket) error {
 	chosenID := ""
 	maxNeed := int64(math.MinInt64)
 	for _, id := range req.Serving {
-		need, err := e.need.GetScore(id)
+		need, err := e.tracker.GetScore(id)
 		if err != nil {
 			badIDs = append(badIDs, id)
 		} else if need > maxNeed {
@@ -79,6 +79,6 @@ func (e *JSONEndpointAllocator) PlaceEndpoint(endpoint Websocket) error {
 
 	// Place in connection queue
 	e.connections.Put(chosenID, endpoint)
-	e.need.AddAllocation(chosenID)
+	e.tracker.AddAllocation(chosenID)
 	return nil
 }

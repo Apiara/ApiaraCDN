@@ -27,15 +27,16 @@ type ClientServicer interface {
 }
 
 // JSONClientServicer implements ClientServicer using JSON for communication
-type JSONClientServicer struct {
+type NeedClientServicer struct {
 	connections ConnectionManager
+	tracker     NeedTracker
 }
 
 /*
 MatchAndSignal find an endpoint with the appropriate data for client
 and performs signaling to assist in the establishing of a p2p connection
 */
-func (c *JSONClientServicer) MatchAndSignal(client Websocket) error {
+func (c *NeedClientServicer) MatchAndSignal(client Websocket) error {
 	// Receive content request
 	_, data, err := client.ReadMessage()
 	if err != nil {
@@ -45,9 +46,10 @@ func (c *JSONClientServicer) MatchAndSignal(client Websocket) error {
 	if err = json.Unmarshal(data, &req); err != nil {
 		return fmt.Errorf("Failed to unmarshal client message: %w", err)
 	}
+	id := req.FunctionalID
+	c.tracker.AddRequest(id)
 
 	// Find endpoint match
-	id := req.FunctionalID
 	endpoint, err := c.connections.Pop(id)
 	if err != nil {
 		failedMsg := signalingResponse{Signal: false}
