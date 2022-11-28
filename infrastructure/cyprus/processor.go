@@ -19,7 +19,7 @@ var (
 )
 
 const (
-	digestFilePatter = "digest_*"
+	digestFilePattern = "digest_*"
 )
 
 // MediaDigest is the result type of a DataProcessor
@@ -108,7 +108,7 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
 	}
 
 	// Create encrypted file, prepend initialization vector
-	outFile, err := ioutil.TempFile(a.outputDir, digestFilePatter)
+	outFile, err := ioutil.TempFile(a.outputDir, digestFilePattern)
 	if err != nil {
 		return "", "", -1, err
 	}
