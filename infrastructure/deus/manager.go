@@ -42,11 +42,14 @@ func (m *mockContentManager) Remove(cid string, server string, dyn bool) error {
 
 // MasterContentManager implements ContentManager
 type MasterContentManager struct {
-	serveState        ContentLocationIndex
-	dataIndex         infra.DataIndex
-	httpClient        *http.Client
-	processAPIAddr    string
-	coordinateAPIAddr string
+	serveState           ContentLocationIndex
+	dataIndex            infra.DataIndex
+	httpClient           *http.Client
+	processDataAPIAddr   string
+	processStatusAPIAddr string
+	deleteDataAPIAddr    string
+	publishDataAPIAddr   string
+	unpublishDataAPIAddr string
 }
 
 /*
@@ -54,14 +57,39 @@ NewMasterContentManager returns a new instances of MasterContentManager
 that uses the processAPI and coordinateAPI to delegate tasks
 */
 func NewMasterContentManager(serverState ContentLocationIndex, index infra.DataIndex, processAPI string,
-	coordinateAPI string) *MasterContentManager {
-	return &MasterContentManager{
-		serveState:        serverState,
-		dataIndex:         index,
-		httpClient:        http.DefaultClient,
-		processAPIAddr:    processAPI,
-		coordinateAPIAddr: coordinateAPI,
+	coordinateAPI string) (*MasterContentManager, error) {
+	// Prepare API resources
+	processDataAPIAddr, err := url.JoinPath(processAPI, infra.CyprusServiceAPIProcessResource)
+	if err != nil {
+		return nil, err
 	}
+	processStatusAPIAddr, err := url.JoinPath(processAPI, infra.CyprusServiceAPIStatusResource)
+	if err != nil {
+		return nil, err
+	}
+	deleteDataAPIAddr, err := url.JoinPath(processAPI, infra.CyprusServiceAPIDeleteResource)
+	if err != nil {
+		return nil, err
+	}
+	publishDataAPIAddr, err := url.JoinPath(coordinateAPI, infra.CrowServiceAPIPublishResource)
+	if err != nil {
+		return nil, err
+	}
+	unpublishDataAPIAddr, err := url.JoinPath(coordinateAPI, infra.CrowServiceAPIPurgeResource)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MasterContentManager{
+		serveState:           serverState,
+		dataIndex:            index,
+		httpClient:           http.DefaultClient,
+		processDataAPIAddr:   processDataAPIAddr,
+		processStatusAPIAddr: processStatusAPIAddr,
+		deleteDataAPIAddr:    deleteDataAPIAddr,
+		publishDataAPIAddr:   publishDataAPIAddr,
+		unpublishDataAPIAddr: unpublishDataAPIAddr,
+	}, nil
 }
 
 func (m *MasterContentManager) sendHTTPMessage(addr string, query string) error {
@@ -85,13 +113,13 @@ func (m *MasterContentManager) processContent(cid string) (string, int64, error)
 	// Create data process request
 	query := url.Values{}
 	query.Add(infra.ContentIDHeader, cid)
-	err := m.sendHTTPMessage(m.processAPIAddr+"/process", query.Encode())
+	err := m.sendHTTPMessage(m.processDataAPIAddr, query.Encode())
 	if err != nil {
 		return "", -1, err
 	}
 
 	// Poll for terminal status
-	statusReq, err := http.NewRequest("GET", m.processAPIAddr+"/status", nil)
+	statusReq, err := http.NewRequest("GET", m.processStatusAPIAddr, nil)
 	if err != nil {
 		return "", -1, err
 	}
@@ -132,7 +160,7 @@ func (m *MasterContentManager) processContent(cid string) (string, int64, error)
 func (m *MasterContentManager) deleteProcessedContent(cid string) error {
 	query := url.Values{}
 	query.Add(infra.ContentIDHeader, cid)
-	return m.sendHTTPMessage(m.processAPIAddr+"/delete", query.Encode())
+	return m.sendHTTPMessage(m.deleteDataAPIAddr, query.Encode())
 }
 
 func (m *MasterContentManager) publishContent(serverAddr string, functionlID string, size int64) error {
@@ -140,14 +168,18 @@ func (m *MasterContentManager) publishContent(serverAddr string, functionlID str
 	query := url.Values{}
 	query.Add(infra.FunctionalIDHeader, functionlID)
 
-	err := m.sendHTTPMessage(serverAddr+"/category/add", query.Encode())
+	serverAddResource, err := url.JoinPath(serverAddr, infra.DamoclesServiceAPIAddResource)
+	if err != nil {
+		return err
+	}
+	err = m.sendHTTPMessage(serverAddResource, query.Encode())
 	if err != nil {
 		return err
 	}
 
 	// Perform content publishing request to dataspace allocator
 	query.Add(infra.ByteSizeHeader, strconv.FormatInt(size, 10))
-	err = m.sendHTTPMessage(m.coordinateAPIAddr+"/publish", query.Encode())
+	err = m.sendHTTPMessage(m.publishDataAPIAddr, query.Encode())
 	if err != nil {
 		return err
 	}
@@ -164,7 +196,12 @@ func (m *MasterContentManager) stopServing(serverAddr string, cid string) error 
 	// Send purge request to session server
 	query := url.Values{}
 	query.Add(infra.FunctionalIDHeader, fid)
-	err = m.sendHTTPMessage(serverAddr+"/category/del", query.Encode())
+
+	serverDelResource, err := url.JoinPath(serverAddr, infra.DamoclesServiceAPIDelResource)
+	if err != nil {
+		return err
+	}
+	err = m.sendHTTPMessage(serverDelResource, query.Encode())
 	if err != nil {
 		return err
 	}
@@ -181,7 +218,7 @@ func (m *MasterContentManager) unpublishContent(cid string) error {
 	// Send purge request to coordination layer
 	query := url.Values{}
 	query.Add(infra.FunctionalIDHeader, fid)
-	err = m.sendHTTPMessage(m.coordinateAPIAddr+"/purge", query.Encode())
+	err = m.sendHTTPMessage(m.unpublishDataAPIAddr, query.Encode())
 	if err != nil {
 		return err
 	}

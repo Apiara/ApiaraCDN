@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/gorilla/websocket"
 )
 
@@ -38,7 +39,9 @@ func StartSignalingAPI(listenAddr string, servicer ClientServicer, allocator End
 	}
 
 	signalingAPI := http.NewServeMux()
-	signalingAPI.HandleFunc("/client/match", handleAPIRequest(upgrader, servicer.MatchAndSignal))
-	signalingAPI.HandleFunc("/endpoint/place", handleAPIRequest(upgrader, allocator.PlaceEndpoint))
+	signalingAPI.HandleFunc(infra.DamoclesSignalAPIMatchResource,
+		handleAPIRequest(upgrader, servicer.MatchAndSignal))
+	signalingAPI.HandleFunc(infra.DamoclesSignalAPIPlaceResource,
+		handleAPIRequest(upgrader, allocator.PlaceEndpoint))
 	log.Fatal(http.ListenAndServe(listenAddr, signalingAPI))
 }

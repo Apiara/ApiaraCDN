@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
 // Helpers to pass to reportHandler
@@ -30,7 +32,9 @@ func reportHandler(createReport func() Report, matcher SessionProcessor) func(re
 // StartReportingAPI starts the API for clients and endpoints to report sessions
 func StartReportingAPI(listenAddr string, matcher SessionProcessor) {
 	reportingAPI := http.NewServeMux()
-	reportingAPI.HandleFunc("/report/client", reportHandler(getEmptyClientReport, matcher))
-	reportingAPI.HandleFunc("/report/client", reportHandler(getEmptyEndpointReport, matcher))
+	reportingAPI.HandleFunc(infra.DominiqueReportAPIClientResource,
+		reportHandler(getEmptyClientReport, matcher))
+	reportingAPI.HandleFunc(infra.DominiqueReportAPIEndpointResource,
+		reportHandler(getEmptyEndpointReport, matcher))
 	log.Fatal(http.ListenAndServe(listenAddr, reportingAPI))
 }

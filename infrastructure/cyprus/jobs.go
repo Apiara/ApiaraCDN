@@ -13,8 +13,8 @@ type job struct {
 }
 
 /*
-jobTracker is used to by the service API keep track of the status of
-processing jobs
+jobTracker is used by the service API to keep track
+of the status of processing jobs
 */
 type jobTracker struct {
 	jobs  map[string]*job

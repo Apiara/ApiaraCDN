@@ -47,6 +47,7 @@ func (c *connectionList) getOldestActiveConnection() (Websocket, error) {
 	for i := 0; i < len(c.list); i++ {
 		conn := c.list[i]
 		if conn.IsActive() {
+			c.list[i] = nil // avoid memory leak
 			c.list = c.list[i+1:]
 			return conn, nil
 		}

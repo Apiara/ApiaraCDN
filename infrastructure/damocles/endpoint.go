@@ -26,8 +26,8 @@ type EndpointAllocator interface {
 }
 
 /*
-JSONEndpointAllocator implements EndpointAllocator
-using JSON messages for communication
+NeedEndpointAllocator implements EndpointAllocator
+using a NeedTracker to make decisions about endpoint allocation
 */
 type NeedEndpointAllocator struct {
 	connections ConnectionManager

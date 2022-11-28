@@ -33,7 +33,7 @@ func (m *mockNeedTracker) AddAllocation(string) error     { m.allocates++; retur
 
 /*
 DesperationTracker is a NeedTracker implementation based on self-defined
-desperation where desperation is requests - allocations over an active time slice
+desperation where desperation = requests - allocations over an active time slice
 */
 type DesperationTracker struct {
 	activeSlice time.Duration

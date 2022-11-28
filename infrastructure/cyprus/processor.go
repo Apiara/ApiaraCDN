@@ -13,10 +13,12 @@ import (
 	"os"
 )
 
-const (
+var (
 	// Default to strongest encryption(AES-256)
 	DefaultAESKeySize = 32
+)
 
+const (
 	digestFilePatter = "digest_*"
 )
 

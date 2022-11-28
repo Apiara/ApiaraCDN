@@ -84,9 +84,17 @@ func main() {
 	dataIndex := infra.NewRedisDataIndex(conf.RedisAddress)
 	contentState := deus.NewRedisContentLocationIndex(conf.RedisAddress)
 	serverIndex := deus.NewRedisGeoServerIndex(conf.RedisAddress)
-	validator := deus.NewContentValidatorClient(conf.ValidateAPIAddress)
-	manager := deus.NewMasterContentManager(contentState, dataIndex,
+	validator, err := deus.NewContentValidatorClient(conf.ValidateAPIAddress)
+	if err != nil {
+		panic(err)
+	}
+
+	manager, err := deus.NewMasterContentManager(contentState, dataIndex,
 		conf.ProcessAPIAddress, conf.CoordinateAPIAddress)
+	if err != nil {
+		panic(err)
+	}
+
 	geoFinder, err := deus.NewMaxMindIPGeoFinder(conf.MaxMindGeoFile, regions)
 	if err != nil {
 		panic(err)
@@ -95,7 +103,7 @@ func main() {
 		conf.PullRequestThreshold, conf.PullFrequency)
 
 	// Start APIs
-	go deus.StartOverrideAPI(overrideListenAddr, manager, serverIndex, geoFinder)
+	go deus.StartServiceAPI(overrideListenAddr, manager, serverIndex, geoFinder)
 	deus.StartDeviceRoutingAPI(routeListenAddr, geoFinder, contentState,
 		serverIndex, pullDecider)
 }

@@ -25,6 +25,7 @@ const (
 	RedisURLToByteSizeKey = "infra:content:size:"
 )
 
+// DataIndexReader exposes all read functions for a DataIndex
 type DataIndexReader interface {
 	GetFunctionalID(cid string) (string, error)
 	GetContentID(fid string) (string, error)
@@ -32,16 +33,23 @@ type DataIndexReader interface {
 	GetSize(cid string) (int64, error)
 }
 
+// DataIndexWriter exposes all write functions for a DataIndex
 type DataIndexWriter interface {
 	Create(cid string, fid string, size int64, resources []string) error
 	Delete(cid string) error
 }
 
+/*
+DataIndex represents an object that keep track of information regarding
+data being served on the network such as the different names the data goes
+by, the net size of the data, and the resource files associated with the data
+*/
 type DataIndex interface {
 	DataIndexReader
 	DataIndexWriter
 }
 
+// Testing mock for DataIndex
 type MockDataIndex struct {
 	cidMap      map[string]string
 	fidMap      map[string]string
@@ -106,11 +114,13 @@ func (m *MockDataIndex) GetSize(cid string) (int64, error) {
 	return -1, fmt.Errorf("No key %s", cid)
 }
 
+// RedisDataIndex implements DataIndex using redis for storage
 type RedisDataIndex struct {
 	rdb *redis.Client
 	ctx context.Context
 }
 
+// NewRedisDataIndex creates a new RedisDataIndex
 func NewRedisDataIndex(addr string) *RedisDataIndex {
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,

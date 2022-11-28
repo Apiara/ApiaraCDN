@@ -15,7 +15,7 @@ to start or stop allocating to endpoints
 func StartServiceAPI(listenAddr string, allocator DataAllocator) {
 	serviceAPI := http.NewServeMux()
 
-	serviceAPI.HandleFunc("/publish", func(resp http.ResponseWriter, req *http.Request) {
+	serviceAPI.HandleFunc(infra.CrowServiceAPIPublishResource, func(resp http.ResponseWriter, req *http.Request) {
 		fid := req.URL.Query().Get(infra.FunctionalIDHeader)
 		sizeStr := req.URL.Query().Get(infra.ByteSizeHeader)
 
@@ -31,7 +31,7 @@ func StartServiceAPI(listenAddr string, allocator DataAllocator) {
 			resp.WriteHeader(http.StatusInternalServerError)
 		}
 	})
-	serviceAPI.HandleFunc("/purge", func(resp http.ResponseWriter, req *http.Request) {
+	serviceAPI.HandleFunc(infra.CrowServiceAPIPurgeResource, func(resp http.ResponseWriter, req *http.Request) {
 		fid := req.URL.Query().Get(infra.FunctionalIDHeader)
 
 		if err := allocator.DelEntry(fid); err != nil {

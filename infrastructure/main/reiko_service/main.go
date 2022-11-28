@@ -31,5 +31,5 @@ func main() {
 	listenAddr := ":" + strconv.Itoa(conf.Port)
 
 	ruleManager := reiko.NewPrefixContentRules(conf.RedisDBAddress)
-	reiko.StartRulesetAPI(listenAddr, ruleManager)
+	reiko.StartServiceAPI(listenAddr, ruleManager)
 }

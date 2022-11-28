@@ -6,6 +6,7 @@ const (
 	ByteSizeHeader     = "bytes"
 )
 
+// Status type for a cyprus data processing job
 type ProcessingStatus string
 
 const (
@@ -14,6 +15,7 @@ const (
 	FinishedProcessing ProcessingStatus = "finished"
 )
 
+// Directory subpaths for cyprus data storage
 const (
 	AESKeyStorageDir    = "/aes/key/"
 	CryptDataStorageDir = "/cryptdata/"

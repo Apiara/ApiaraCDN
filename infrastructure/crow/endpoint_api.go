@@ -19,7 +19,7 @@ be allocated data to serve on the network
 */
 func StartDataAllocatorAPI(listenAddr string, allocator DataAllocator) {
 	allocateAPI := http.NewServeMux()
-	allocateAPI.HandleFunc("/endpoint/allocate", func(resp http.ResponseWriter, req *http.Request) {
+	allocateAPI.HandleFunc(infra.CrowAllocateAPIResource, func(resp http.ResponseWriter, req *http.Request) {
 		bytesStr := req.URL.Query().Get(infra.ByteSizeHeader)
 		availableSpace, err := strconv.ParseInt(bytesStr, 10, 64)
 		if err != nil {

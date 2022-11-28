@@ -41,5 +41,5 @@ func main() {
 	clientServicer := damocles.NewNeedClientServicer(connections, tracker)
 	endpointAllocator := damocles.NewNeedEndpointAllocator(connections, tracker)
 	go damocles.StartSignalingAPI(deviceAPIAddr, clientServicer, endpointAllocator)
-	damocles.StartDamoclesServiceAPI(serviceAPIAddr, updater)
+	damocles.StartServiceAPI(serviceAPIAddr, updater)
 }

@@ -16,22 +16,24 @@ type CategoryUpdater interface {
 	DelCategory(string) error
 }
 
-// StartDamoclesServiceAPI starts the API used to modify service state
-func StartDamoclesServiceAPI(listenAddr string, updater CategoryUpdater) {
+// StartServiceAPI starts the API used to modify service state
+func StartServiceAPI(listenAddr string, updater CategoryUpdater) {
 	serviceAPI := http.NewServeMux()
-	serviceAPI.HandleFunc("/category/add", func(resp http.ResponseWriter, req *http.Request) {
-		id := req.URL.Query().Get(infra.FunctionalIDHeader)
-		if err := updater.CreateCategory(id); err != nil {
-			log.Println(err)
-			resp.WriteHeader(http.StatusInternalServerError)
-		}
-	})
-	serviceAPI.HandleFunc("/category/del", func(resp http.ResponseWriter, req *http.Request) {
-		id := req.URL.Query().Get(infra.FunctionalIDHeader)
-		if err := updater.DelCategory(id); err != nil {
-			log.Println(err)
-			resp.WriteHeader(http.StatusInternalServerError)
-		}
-	})
+	serviceAPI.HandleFunc(infra.DamoclesServiceAPIAddResource,
+		func(resp http.ResponseWriter, req *http.Request) {
+			id := req.URL.Query().Get(infra.FunctionalIDHeader)
+			if err := updater.CreateCategory(id); err != nil {
+				log.Println(err)
+				resp.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+	serviceAPI.HandleFunc(infra.DamoclesServiceAPIDelResource,
+		func(resp http.ResponseWriter, req *http.Request) {
+			id := req.URL.Query().Get(infra.FunctionalIDHeader)
+			if err := updater.DelCategory(id); err != nil {
+				log.Println(err)
+				resp.WriteHeader(http.StatusInternalServerError)
+			}
+		})
 	log.Fatal(http.ListenAndServe(listenAddr, serviceAPI))
 }

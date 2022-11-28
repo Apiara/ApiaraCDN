@@ -13,8 +13,7 @@ var (
 )
 
 /*
-	SessionProcessor represents an object that can ingest session reports
-
+SessionProcessor represents an object that can ingest session reports
 and properly match and store the deduced results
 */
 type SessionProcessor interface {
@@ -28,8 +27,7 @@ type processorEntry struct {
 }
 
 /*
-	TimedSessionProcessor implements SessionProcessor and has a mechanism for
-
+TimedSessionProcessor implements SessionProcessor and has a mechanism for
 timing out and moving unmatched reports to a secondary storage system for later
 processing to prevent OOM
 */

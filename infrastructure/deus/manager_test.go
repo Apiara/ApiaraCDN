@@ -35,7 +35,10 @@ func TestMasterContentManager(t *testing.T) {
 	serverAddr := mockAPIAddr
 	state := &mockContentLocationIndex{make(map[string]struct{})}
 	dataIndex := infra.NewMockDataIndex()
-	manager := NewMasterContentManager(state, dataIndex, mockAPIAddr, mockAPIAddr)
+	manager, err := NewMasterContentManager(state, dataIndex, mockAPIAddr, mockAPIAddr)
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
 
 	// Do Serve test
 	if err := manager.Serve(cid, serverAddr, true); err != nil {

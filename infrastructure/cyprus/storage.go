@@ -16,8 +16,7 @@ const (
 )
 
 /*
-	StorageManager represents an object that can publish the output of a MediaDigest
-
+StorageManager represents an object that can publish the output of a MediaDigest
 to the data stores for use by client and endpoint resource retrieval APIs
 */
 type StorageManager interface {
@@ -65,13 +64,13 @@ func NewFilesystemStorageManager(storageDir string, state infra.DataIndex) (*Fil
 }
 
 // publishManifest publishes digested manifest resources to the appropriate data stores
-func (r *FilesystemStorageManager) publishManifest(mediaMap manifest, key []byte) ([]string, error) {
+func (s *FilesystemStorageManager) publishManifest(mediaMap manifest, key []byte) ([]string, error) {
 	// Create list of all created resources
 	resources := make([]string, 0)
 
 	// Publish symmetric key
 	urlFname := infra.URLToSafeName(mediaMap.URL)
-	keyFname := path.Join(r.keyDir, urlFname)
+	keyFname := path.Join(s.keyDir, urlFname)
 	if err := ioutil.WriteFile(keyFname, key, publishedFilePerms); err != nil {
 		return resources, err
 	}
@@ -81,7 +80,7 @@ func (r *FilesystemStorageManager) publishManifest(mediaMap manifest, key []byte
 	var err error
 	for _, mediaStream := range mediaMap.Streams {
 		for _, mediaSegment := range mediaStream.Segments {
-			dataFname := path.Join(r.dataDir, mediaSegment.FunctionalID)
+			dataFname := path.Join(s.dataDir, mediaSegment.FunctionalID)
 			if err = os.Rename(mediaSegment.File, dataFname); err != nil {
 				return resources, err
 			}
@@ -90,7 +89,7 @@ func (r *FilesystemStorageManager) publishManifest(mediaMap manifest, key []byte
 	}
 
 	// Publish complete map
-	completeMapFname := path.Join(r.completeMapDir, urlFname)
+	completeMapFname := path.Join(s.completeMapDir, urlFname)
 	serialCompleteMap, err := json.Marshal(mediaMap)
 	if err != nil {
 		return resources, err
@@ -101,7 +100,7 @@ func (r *FilesystemStorageManager) publishManifest(mediaMap manifest, key []byte
 	resources = append(resources, completeMapFname)
 
 	// Publish partial map
-	partialMapFname := path.Join(r.partialMapDir, mediaMap.FunctionalID)
+	partialMapFname := path.Join(s.partialMapDir, mediaMap.FunctionalID)
 	partialMap := completeToPartialManifest(mediaMap)
 	serialPartialMap, err := json.Marshal(partialMap)
 	if err != nil {
@@ -116,27 +115,27 @@ func (r *FilesystemStorageManager) publishManifest(mediaMap manifest, key []byte
 }
 
 // publishRawMedia publishes the digested media data to the proper data stores
-func (r *FilesystemStorageManager) publishRawMedia(media rawMedia, key []byte) ([]string, error) {
+func (s *FilesystemStorageManager) publishRawMedia(media rawMedia, key []byte) ([]string, error) {
 	// Create list of all created resources
 	resources := make([]string, 0)
 
 	// Publish symmetric key
 	urlFname := infra.URLToSafeName(media.URL)
-	keyFname := path.Join(r.keyDir, urlFname)
+	keyFname := path.Join(s.keyDir, urlFname)
 	if err := ioutil.WriteFile(keyFname, key, publishedFilePerms); err != nil {
 		return resources, err
 	}
 	resources = append(resources, keyFname)
 
 	// Publish encrypted media file
-	dataFname := path.Join(r.dataDir, media.FunctionalID)
+	dataFname := path.Join(s.dataDir, media.FunctionalID)
 	if err := os.Rename(media.File, dataFname); err != nil {
 		return resources, err
 	}
 	resources = append(resources, dataFname)
 
 	// Publish complete media definition
-	mediaDefFname := path.Join(r.completeMapDir, urlFname)
+	mediaDefFname := path.Join(s.completeMapDir, urlFname)
 	serialMediaDef, err := json.Marshal(media)
 	if err != nil {
 		return resources, err
@@ -148,7 +147,7 @@ func (r *FilesystemStorageManager) publishRawMedia(media rawMedia, key []byte) (
 
 	// Publish partial media definition
 	pMedia := completeToPartialRawMedia(media)
-	pMediaDefFname := path.Join(r.partialMapDir, media.FunctionalID)
+	pMediaDefFname := path.Join(s.partialMapDir, media.FunctionalID)
 	serialPMedia, err := json.Marshal(pMedia)
 	if err != nil {
 		return resources, err
@@ -162,7 +161,7 @@ func (r *FilesystemStorageManager) publishRawMedia(media rawMedia, key []byte) (
 }
 
 // purgeFiles deletes all files specified in 'resources'
-func (r *FilesystemStorageManager) purgeFiles(resources []string) {
+func (s *FilesystemStorageManager) purgeFiles(resources []string) {
 	for _, resource := range resources {
 		if err := os.Remove(resource); err != nil {
 			log.Println(err)
@@ -171,7 +170,7 @@ func (r *FilesystemStorageManager) purgeFiles(resources []string) {
 }
 
 // Publish publishes the output of a MediaDigest to the appropriate datastores
-func (r *FilesystemStorageManager) Publish(digest MediaDigest) error {
+func (s *FilesystemStorageManager) Publish(digest MediaDigest) error {
 	var err error
 	var url string
 	var fid string
@@ -183,13 +182,13 @@ func (r *FilesystemStorageManager) Publish(digest MediaDigest) error {
 		media := digest.Result.(rawMedia)
 		url = media.URL
 		fid = media.FunctionalID
-		resources, err = r.publishRawMedia(media, digest.CryptKey)
+		resources, err = s.publishRawMedia(media, digest.CryptKey)
 		break
 	case VODMedia:
 		mediaManifest := digest.Result.(manifest)
 		url = mediaManifest.URL
 		fid = mediaManifest.FunctionalID
-		resources, err = r.publishManifest(mediaManifest, digest.CryptKey)
+		resources, err = s.publishManifest(mediaManifest, digest.CryptKey)
 		break
 	default:
 		return fmt.Errorf("Failed to publish. MediaType %d does not exist", digest.Type)
@@ -197,12 +196,12 @@ func (r *FilesystemStorageManager) Publish(digest MediaDigest) error {
 
 	// Purge all created resources if anything failed
 	if err != nil {
-		r.purgeFiles(resources)
+		s.purgeFiles(resources)
 		return err
 	}
 
-	// Publish state update to redis database
-	if err = r.state.Create(url, fid, digest.ByteSize, resources); err != nil {
+	// Publish state update to state index
+	if err = s.state.Create(url, fid, digest.ByteSize, resources); err != nil {
 		return err
 	}
 	return nil
@@ -210,29 +209,29 @@ func (r *FilesystemStorageManager) Publish(digest MediaDigest) error {
 
 /*
 purge removes all filesystem resources created for a URL/FID
-as well as deletes all associated redis state entries
+as well as deletes all associated indexed information
 */
-func (r *FilesystemStorageManager) purge(url string) error {
+func (s *FilesystemStorageManager) purge(url string) error {
 	// Purge resource files
-	resources, err := r.state.GetResources(url)
+	resources, err := s.state.GetResources(url)
 	if err != nil {
 		return fmt.Errorf("Failed to read resource list for URL %s: %w", url, err)
 	}
-	r.purgeFiles(resources)
-	return r.state.Delete(url)
+	s.purgeFiles(resources)
+	return s.state.Delete(url)
 }
 
 // PurgeByURL allows purging by URL key
-func (r *FilesystemStorageManager) PurgeByURL(url string) error {
-	return r.purge(url)
+func (s *FilesystemStorageManager) PurgeByURL(url string) error {
+	return s.purge(url)
 }
 
 // PurgeByFunctionalID allows purging by functional ID
-func (r *FilesystemStorageManager) PurgeByFunctionalID(fid string) error {
+func (s *FilesystemStorageManager) PurgeByFunctionalID(fid string) error {
 	// Get URL
-	url, err := r.state.GetContentID(fid)
+	url, err := s.state.GetContentID(fid)
 	if err != nil {
 		return err
 	}
-	return r.purge(url)
+	return s.purge(url)
 }

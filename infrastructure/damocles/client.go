@@ -26,7 +26,12 @@ type ClientServicer interface {
 	MatchAndSignal(Websocket) error
 }
 
-// JSONClientServicer implements ClientServicer using JSON for communication
+/*
+NeedClientServicer implements ClientServicer in a system where a NeedTracker
+is used to allocate endpoints to different content delivery job queues. This
+requires the NeedTracker to keep track of how many client requests for
+each data ID their are
+*/
 type NeedClientServicer struct {
 	connections ConnectionManager
 	tracker     NeedTracker
@@ -41,7 +46,7 @@ func NewNeedClientServicer(connStore ConnectionManager, tracker NeedTracker) *Ne
 }
 
 /*
-MatchAndSignal find an endpoint with the appropriate data for client
+MatchAndSignal finds an endpoint with the appropriate data for client
 and performs signaling to assist in the establishing of a p2p connection
 */
 func (c *NeedClientServicer) MatchAndSignal(client Websocket) error {
