@@ -1,6 +1,7 @@
 package crow
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,7 @@ func TestEvenDataAllocator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get allocations: %v", err)
 	}
+	fmt.Println(ids)
 
 	assert.Equal(t, len(expectedAllocations), len(ids), "Wrong amount of allocations returned")
 	for i := 0; i < len(ids); i++ {

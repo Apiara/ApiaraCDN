@@ -143,8 +143,8 @@ func (d *EvenDataAllocator) AllocateSpace(availableSpace int64) ([]string, error
 		classQueue := d.dataQueues[classIdx]
 
 		// Get all possible allocations from class
-		popped := make([]*dataItem, 0)
 		item := classQueue.pop()
+		popped := []*dataItem{item}
 		for item != nil && availableSpace > nextClass {
 			allocations = append(allocations, item.id)
 			availableSpace -= item.byteSize
@@ -159,7 +159,11 @@ func (d *EvenDataAllocator) AllocateSpace(availableSpace int64) ([]string, error
 			classQueue.push(item.id, item)
 		}
 
+		// Skip to next size class that can be served
 		classIdx--
+		for classIdx != 0 && availableSpace < d.dataClasses[classIdx-1] {
+			classIdx--
+		}
 	}
 
 	return allocations, nil
