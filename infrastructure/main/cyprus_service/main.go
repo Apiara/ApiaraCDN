@@ -4,6 +4,7 @@ import (
 	"flag"
 	"strconv"
 
+	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/Apiara/ApiaraCDN/infrastructure/cyprus"
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
 )
@@ -55,7 +56,8 @@ func main() {
 	}
 
 	// Create storage manager
-	storage, err := cyprus.NewRedisStorageManager(conf.RedisDBAddress, conf.PublishingDir)
+	dataIndex := infra.NewRedisDataIndex(conf.RedisDBAddress)
+	storage, err := cyprus.NewFilesystemStorageManager(conf.PublishingDir, dataIndex)
 	if err != nil {
 		panic(err)
 	}

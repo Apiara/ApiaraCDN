@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/Apiara/ApiaraCDN/infrastructure/dominique"
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
 )
@@ -38,8 +39,8 @@ func main() {
 	}
 	listenAddr := ":" + strconv.Itoa(conf.Port)
 
-	finder := dominique.NewRedisURLIndex(conf.RedisDBAddress)
-	timeseries := dominique.NewInfluxTimeseriesDB(conf.InfluxDBAddress, conf.InfluxDBToken, finder)
+	dataIndex := infra.NewRedisDataIndex(conf.RedisDBAddress)
+	timeseries := dominique.NewInfluxTimeseriesDB(conf.InfluxDBAddress, conf.InfluxDBToken, dataIndex)
 	matcher := dominique.NewTimedSessionProcessor(conf.ReportRetrievalTimeout, timeseries)
 	dominique.StartReportingAPI(listenAddr, matcher)
 }

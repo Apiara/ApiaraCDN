@@ -44,7 +44,7 @@ NewThresholdPullDecider creates a new ThresholdPullDecider and starts the
 decision thread with the passed in requestThreshold and decisionInterval params
 */
 func NewThresholdPullDecider(validator ContentValidator, contentManager ContentManager,
-	dataState ContentState, requestThreshold int, decisionInterval time.Duration) *ThresholdPullDecider {
+	dataState ContentLocationIndex, requestThreshold int, decisionInterval time.Duration) *ThresholdPullDecider {
 
 	// Create ThresholdPullDecider objects
 	decider := &ThresholdPullDecider{
@@ -62,7 +62,7 @@ func NewThresholdPullDecider(validator ContentValidator, contentManager ContentM
 				cid, serverAddr := unpackServePairKey(key)
 				// Add data if above threshold and not being served
 
-				serving, err := dataState.IsBeingServed(cid, serverAddr)
+				serving, err := dataState.IsServedByServer(cid, serverAddr)
 				if err != nil {
 					log.Println(err)
 					continue

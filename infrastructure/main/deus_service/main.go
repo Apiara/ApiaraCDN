@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/Apiara/ApiaraCDN/infrastructure/deus"
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
 )
@@ -80,11 +81,12 @@ func main() {
 	routeListenAddr := ":" + strconv.Itoa(conf.RouteListenPort)
 
 	// Create resources
-	contentState := deus.NewRedisContentState(conf.RedisAddress)
+	dataIndex := infra.NewRedisDataIndex(conf.RedisAddress)
+	contentState := deus.NewRedisContentLocationIndex(conf.RedisAddress)
 	serverIndex := deus.NewRedisGeoServerIndex(conf.RedisAddress)
 	validator := deus.NewContentValidatorClient(conf.ValidateAPIAddress)
-	manager := deus.NewMasterContentManager(contentState, conf.ProcessAPIAddress,
-		conf.CoordinateAPIAddress)
+	manager := deus.NewMasterContentManager(contentState, dataIndex,
+		conf.ProcessAPIAddress, conf.CoordinateAPIAddress)
 	geoFinder, err := deus.NewMaxMindIPGeoFinder(conf.MaxMindGeoFile, regions)
 	if err != nil {
 		panic(err)
