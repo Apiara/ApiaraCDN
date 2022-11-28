@@ -62,7 +62,7 @@ func NewEvenDataAllocator(sizeClasses []int64) *EvenDataAllocator {
 
 /*
 binary search modification returning closest data class to availablesSpace.
-If ceil = true then it returns the cloeset data class > availableSpace,
+If ceil = true then it returns the closest data class > availableSpace,
 otherwise it returns the closest data class < availableSpace
 */
 func (d *EvenDataAllocator) findNearestDataClass(availableSpace int64, ceil bool) int {
