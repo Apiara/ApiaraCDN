@@ -5,11 +5,93 @@ import (
 	"time"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestInfluxTimeseriesDB(t *testing.T) {
+func TestInfluxDBTimeseriesDBReader(t *testing.T) {
+	// Initialize database and resources
 	dbURL := "http://localhost:8086"
-	dbToken := "tDJfcuaQ1jUCbQrH_nktJyTpjgN8-EUwj7-HQ0sMxFHdmcRQjASya7vj3doeqKW1F6QlGu76Fa0uMjHWrD5v6A=="
+	dbToken := "dnV03GLrROV5E_mStsTl9d-J1tNPife9K0tij8t9ujjOhKzA6JiMyMyicPXGJ0YizAd9yxDbqGUHYS4tY5sYoQ=="
+	finder := infra.NewMockDataIndex()
+	finder.Create("read_cid", "read_fid", 2048, []string{})
+
+	timeseries := NewInfluxTimeseriesDB(dbURL, dbToken, finder)
+
+	// Test ReadEndpointSessions and ReadContentSessions
+	desc := SessionDescription{
+		SessionID:        "read_session",
+		FunctionalID:     "read_fid",
+		ClientIP:         "read_ip",
+		EndpointIP:       "read_ip",
+		EndpointIdentity: "read_identity",
+		BytesRecv:        2048,
+		BytesNeeded:      2048,
+		Agree:            true,
+	}
+
+	writeTime := time.Now()
+	if err := timeseries.WriteDescription(desc, writeTime); err != nil {
+		t.Fatalf("Failed to write description for read testing: %v", err)
+	}
+
+	startRange := writeTime.Add(-5 * time.Second)
+	endRange := writeTime.Add(5 * time.Second)
+	descriptions, err := timeseries.ReadEndpointSessions("read_identity", startRange, endRange)
+	if err != nil {
+		t.Fatalf("Failed to read descriptions by endpoint ID: %v", err)
+	}
+	assert.Equal(t, 1, len(descriptions), "Wrong number of descriptions retrieved by identity")
+	assert.Equal(t, desc, *(descriptions[0]), "Read description doesn't match actual description")
+
+	descriptions, err = timeseries.ReadContentSessions("read_cid", startRange, endRange)
+	if err != nil {
+		t.Fatalf("Failed to read descriptions by content ID: %v", err)
+	}
+	assert.Equal(t, 1, len(descriptions), "Wrong number of descriptions retrieved by content ID")
+	assert.Equal(t, desc, *(descriptions[0]), "Read description doesn't match actual description")
+
+	// Test ReadReportRange and ReadSessionReports
+	cReport := ClientReport{
+		SessionID:    "read_session",
+		FunctionalID: "read_fid",
+		IP:           "read_ip",
+		BytesRecv:    1024,
+		BytesNeeded:  1024,
+	}
+
+	if err := timeseries.WriteReport(&cReport, writeTime); err != nil {
+		t.Fatalf("Failed to write report: %v", err)
+	}
+
+	// Test WriteReport Endpoint
+	eReport := EndpointReport{
+		SessionID:    "read_session",
+		FunctionalID: "read_fid",
+		IP:           "read_ip",
+		BytesServed:  1024,
+		Identity:     "read_id",
+	}
+
+	if err := timeseries.WriteReport(&eReport, writeTime); err != nil {
+		t.Fatalf("Failed to write report: %v", err)
+	}
+
+	reports, err := timeseries.ReadReportRange(startRange, endRange)
+	if err != nil {
+		t.Fatalf("Failed to read report range: %v", err)
+	}
+	assert.Equal(t, 2, len(reports), "Failed to read correct amount of reports")
+
+	reports, err = timeseries.ReadSessionReports("read_session", startRange, endRange)
+	if err != nil {
+		t.Fatalf("Failed to read report range by session id: %v", err)
+	}
+	assert.Equal(t, 2, len(reports), "Failed to read correct amount of reports by session id")
+}
+
+func TestInfluxTimeseriesDBWriter(t *testing.T) {
+	dbURL := "http://localhost:8086"
+	dbToken := "dnV03GLrROV5E_mStsTl9d-J1tNPife9K0tij8t9ujjOhKzA6JiMyMyicPXGJ0YizAd9yxDbqGUHYS4tY5sYoQ=="
 	finder := infra.NewMockDataIndex()
 	finder.Create("url_fid", "fid", 1024, []string{})
 
@@ -27,7 +109,7 @@ func TestInfluxTimeseriesDB(t *testing.T) {
 		Agree:            true,
 	}
 
-	if err := timeseries.WriteDescription(time.Now(), desc); err != nil {
+	if err := timeseries.WriteDescription(desc, time.Now()); err != nil {
 		t.Fatalf("Failed to write description: %v", err)
 	}
 
@@ -40,7 +122,7 @@ func TestInfluxTimeseriesDB(t *testing.T) {
 		BytesNeeded:  1024,
 	}
 
-	if err := timeseries.WriteReport(time.Now(), &cReport); err != nil {
+	if err := timeseries.WriteReport(&cReport, time.Now()); err != nil {
 		t.Fatalf("Failed to write report: %v", err)
 	}
 
@@ -53,7 +135,7 @@ func TestInfluxTimeseriesDB(t *testing.T) {
 		Identity:     "id",
 	}
 
-	if err := timeseries.WriteReport(time.Now(), &eReport); err != nil {
+	if err := timeseries.WriteReport(&eReport, time.Now()); err != nil {
 		t.Fatalf("Failed to write report: %v", err)
 	}
 }

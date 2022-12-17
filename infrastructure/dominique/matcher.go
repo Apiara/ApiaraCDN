@@ -33,7 +33,7 @@ processing to prevent OOM
 */
 type TimedSessionProcessor struct {
 	reportMatchTimeout time.Duration
-	timeseries         TimeseriesDB
+	timeseries         TimeseriesDBWriter
 	mutex              *sync.Mutex
 	activeSessions     map[string]*processorEntry
 }
@@ -54,12 +54,12 @@ func (t *TimedSessionProcessor) collectUnmatchedReports() {
 					log.Println(err)
 				}
 			} else if entry.clientReport != nil {
-				err := t.timeseries.WriteReport(entry.firstSeen, entry.clientReport)
+				err := t.timeseries.WriteReport(entry.clientReport, entry.firstSeen)
 				if err != nil {
 					log.Println(err)
 				}
 			} else if entry.endpointReport != nil {
-				err := t.timeseries.WriteReport(entry.firstSeen, entry.endpointReport)
+				err := t.timeseries.WriteReport(entry.endpointReport, entry.firstSeen)
 				if err != nil {
 					log.Println(err)
 				}
@@ -70,7 +70,7 @@ func (t *TimedSessionProcessor) collectUnmatchedReports() {
 }
 
 // NewTimedSessionProcessor creates a new TimedSessionProcessor
-func NewTimedSessionProcessor(timeout time.Duration, timeseries TimeseriesDB) *TimedSessionProcessor {
+func NewTimedSessionProcessor(timeout time.Duration, timeseries TimeseriesDBWriter) *TimedSessionProcessor {
 	processor := &TimedSessionProcessor{
 		reportMatchTimeout: timeout,
 		timeseries:         timeseries,
@@ -118,17 +118,17 @@ func (t *TimedSessionProcessor) createSessionDescription(client *ClientReport,
 func (t *TimedSessionProcessor) ingestSessionEntry(entry *processorEntry) error {
 	desc, err := t.createSessionDescription(entry.clientReport, entry.endpointReport)
 	if err == conflictErr {
-		if tErr := t.timeseries.WriteReport(entry.firstSeen, entry.clientReport); tErr != nil {
+		if tErr := t.timeseries.WriteReport(entry.clientReport, entry.firstSeen); tErr != nil {
 			return tErr
 		}
-		if tErr := t.timeseries.WriteReport(entry.firstSeen, entry.endpointReport); tErr != nil {
+		if tErr := t.timeseries.WriteReport(entry.endpointReport, entry.firstSeen); tErr != nil {
 			return tErr
 		}
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("Failed to create session description: %w", err)
 	}
-	return t.timeseries.WriteDescription(entry.firstSeen, desc)
+	return t.timeseries.WriteDescription(desc, entry.firstSeen)
 }
 
 // AddReport adds report r to the system to be processed and matched
