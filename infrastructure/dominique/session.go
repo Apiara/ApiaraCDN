@@ -20,6 +20,7 @@ type Report interface {
 type ClientReport struct {
 	SessionID    string `json:"SessionID"`
 	FunctionalID string `json:"FunctionalID"`
+	ContentID    string `json:"-"`
 	IP           string `json:"IP"`
 	BytesRecv    int64  `json:"BytesRecv"`
 	BytesNeeded  int64  `json:"BytesServed"`
@@ -33,6 +34,7 @@ func (c *ClientReport) GetIP() string           { return c.IP }
 type EndpointReport struct {
 	SessionID    string `json:"SessionID"`
 	FunctionalID string `json:"FunctionalID"`
+	ContentID    string `json:"-"`
 	IP           string `json:"IP"`
 	Identity     string `json:"Identity"`
 	BytesServed  int64  `json:"BytesServed"`
@@ -49,6 +51,7 @@ as agreed upon by both the client and the endpoint
 type SessionDescription struct {
 	SessionID        string
 	FunctionalID     string
+	ContentID        string
 	ClientIP         string
 	EndpointIP       string
 	EndpointIdentity string

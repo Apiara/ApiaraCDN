@@ -56,7 +56,7 @@ Reports and SessionDescriptions by time range
 */
 type TimeseriesDBReader interface {
 	ReadReportRange(start time.Time, end time.Time) ([]Report, error)
-	ReadSessionReports(sid string, start time.Time, end time.Time) ([]Report, error)
+	ReadSessionReports(sid string, start time.Time, end time.Time) (*ClientReport, *EndpointReport, error)
 	ReadEndpointSessions(eid string, start time.Time, end time.Time) ([]SessionDescription, error)
 	ReadContentSessions(cid string, start time.Time, end time.Time) ([]SessionDescription, error)
 }
@@ -196,6 +196,7 @@ func (ts *InfluxTimeseriesDB) readReports(query string) ([]Report, error) {
 			reportValues = map[string]interface{}{
 				"type":       measurement,
 				sessionIDTag: sessionID,
+				contentIDTag: record.ValueByKey(contentIDTag).(string),
 			}
 			if measurement == endpointReportMeasure {
 				reportValues[endpointIDTag] = record.ValueByKey(endpointIDTag).(string)
@@ -214,6 +215,7 @@ func (ts *InfluxTimeseriesDB) readReports(query string) ([]Report, error) {
 			report = &ClientReport{
 				SessionID:    reportValues[sessionIDTag].(string),
 				FunctionalID: reportValues[functionalIDField].(string),
+				ContentID:    reportValues[contentIDTag].(string),
 				IP:           reportValues[reportIPField].(string),
 				BytesRecv:    reportValues[bytesRecvField].(int64),
 				BytesNeeded:  reportValues[bytesNeededField].(int64),
@@ -223,6 +225,7 @@ func (ts *InfluxTimeseriesDB) readReports(query string) ([]Report, error) {
 			report = &EndpointReport{
 				SessionID:    reportValues[sessionIDTag].(string),
 				FunctionalID: reportValues[functionalIDField].(string),
+				ContentID:    reportValues[contentIDTag].(string),
 				IP:           reportValues[reportIPField].(string),
 				Identity:     reportValues[endpointIDTag].(string),
 				BytesServed:  reportValues[bytesServedField].(int64),
@@ -234,7 +237,7 @@ func (ts *InfluxTimeseriesDB) readReports(query string) ([]Report, error) {
 	return reports, nil
 }
 
-func (ts *InfluxTimeseriesDB) readSessions(query string) ([]*SessionDescription, error) {
+func (ts *InfluxTimeseriesDB) readSessions(query string) ([]SessionDescription, error) {
 	// Make Query
 	result, err := ts.dbReader.Query(context.Background(), query)
 	if err != nil {
@@ -252,6 +255,7 @@ func (ts *InfluxTimeseriesDB) readSessions(query string) ([]*SessionDescription,
 			sessionValues = map[string]interface{}{
 				sessionIDTag:  sessionID,
 				endpointIDTag: record.ValueByKey(endpointIDTag).(string),
+				contentIDTag:  record.ValueByKey(contentIDTag).(string),
 			}
 			sessionBuilderMap[sessionID] = sessionValues
 		}
@@ -259,11 +263,12 @@ func (ts *InfluxTimeseriesDB) readSessions(query string) ([]*SessionDescription,
 	}
 
 	// Build SessionDescriptions
-	sessions := make([]*SessionDescription, 0, len(sessionBuilderMap))
+	sessions := make([]SessionDescription, 0, len(sessionBuilderMap))
 	for _, sessionValues := range sessionBuilderMap {
-		session := &SessionDescription{
+		session := SessionDescription{
 			SessionID:        sessionValues[sessionIDTag].(string),
 			FunctionalID:     sessionValues[functionalIDField].(string),
+			ContentID:        sessionValues[contentIDTag].(string),
 			ClientIP:         sessionValues[clientIPField].(string),
 			EndpointIP:       sessionValues[endpointIPField].(string),
 			EndpointIdentity: sessionValues[endpointIDTag].(string),
@@ -288,17 +293,38 @@ func (ts *InfluxTimeseriesDB) ReadReportRange(start time.Time, end time.Time) ([
 }
 
 // ReadSessionReports reads all data points from ReportsBucket that have a session_id that matched 'sid'
-func (ts *InfluxTimeseriesDB) ReadSessionReports(sid string, start time.Time, end time.Time) ([]Report, error) {
+func (ts *InfluxTimeseriesDB) ReadSessionReports(sid string, start time.Time, end time.Time) (*ClientReport, *EndpointReport, error) {
+	// Create query
 	startStr := start.UTC().Format(time.RFC3339)
 	endStr := end.UTC().Format(time.RFC3339)
 	query := fmt.Sprintf(`from(bucket:"%s")|> range(start: %s, stop: %s) |> filter(fn: (r) => r["%s"] == "%s")`,
 		ReportsBucket, startStr, endStr, sessionIDTag, sid)
 
-	return ts.readReports(query)
+	// Read reports
+	reports, err := ts.readReports(query)
+	if err != nil {
+		return nil, nil, err
+	} else if len(reports) != 2 {
+		return nil, nil, fmt.Errorf("Invalid number of session reports: %d", len(reports))
+	}
+
+	// Return reports
+	var clientReport *ClientReport
+	var endpointReport *EndpointReport
+	switch report := reports[0].(type) {
+	case *ClientReport:
+		clientReport = report
+		endpointReport = reports[1].(*EndpointReport)
+		break
+	case *EndpointReport:
+		clientReport = reports[1].(*ClientReport)
+		endpointReport = report
+	}
+	return clientReport, endpointReport, nil
 }
 
 // ReadEndpointSessions reads all data points from SessionsBucket that are tagged with endpoint_id 'eid'
-func (ts *InfluxTimeseriesDB) ReadEndpointSessions(eid string, start time.Time, end time.Time) ([]*SessionDescription, error) {
+func (ts *InfluxTimeseriesDB) ReadEndpointSessions(eid string, start time.Time, end time.Time) ([]SessionDescription, error) {
 	startStr := start.UTC().Format(time.RFC3339)
 	endStr := end.UTC().Format(time.RFC3339)
 	query := fmt.Sprintf(`from(bucket:"%s")|> range(start: %s, stop: %s) |> filter(fn: (r) => r["%s"] == "%s")`,
@@ -308,7 +334,7 @@ func (ts *InfluxTimeseriesDB) ReadEndpointSessions(eid string, start time.Time, 
 }
 
 // ReadContentSessions reads all data points from SessionsBucket that are tagged with content_id 'cid'
-func (ts *InfluxTimeseriesDB) ReadContentSessions(cid string, start time.Time, end time.Time) ([]*SessionDescription, error) {
+func (ts *InfluxTimeseriesDB) ReadContentSessions(cid string, start time.Time, end time.Time) ([]SessionDescription, error) {
 	startStr := start.UTC().Format(time.RFC3339)
 	endStr := end.UTC().Format(time.RFC3339)
 	query := fmt.Sprintf(`from(bucket:"%s")|> range(start: %s, stop: %s) |> filter(fn: (r) => r["%s"] == "%s")`,

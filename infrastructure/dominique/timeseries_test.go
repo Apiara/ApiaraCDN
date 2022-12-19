@@ -21,6 +21,7 @@ func TestInfluxDBTimeseriesDBReader(t *testing.T) {
 	desc := SessionDescription{
 		SessionID:        "read_session",
 		FunctionalID:     "read_fid",
+		ContentID:        "read_cid",
 		ClientIP:         "read_ip",
 		EndpointIP:       "read_ip",
 		EndpointIdentity: "read_identity",
@@ -41,14 +42,14 @@ func TestInfluxDBTimeseriesDBReader(t *testing.T) {
 		t.Fatalf("Failed to read descriptions by endpoint ID: %v", err)
 	}
 	assert.Equal(t, 1, len(descriptions), "Wrong number of descriptions retrieved by identity")
-	assert.Equal(t, desc, *(descriptions[0]), "Read description doesn't match actual description")
+	assert.Equal(t, desc, descriptions[0], "Read description doesn't match actual description")
 
 	descriptions, err = timeseries.ReadContentSessions("read_cid", startRange, endRange)
 	if err != nil {
 		t.Fatalf("Failed to read descriptions by content ID: %v", err)
 	}
 	assert.Equal(t, 1, len(descriptions), "Wrong number of descriptions retrieved by content ID")
-	assert.Equal(t, desc, *(descriptions[0]), "Read description doesn't match actual description")
+	assert.Equal(t, desc, descriptions[0], "Read description doesn't match actual description")
 
 	// Test ReadReportRange and ReadSessionReports
 	cReport := ClientReport{
@@ -82,11 +83,10 @@ func TestInfluxDBTimeseriesDBReader(t *testing.T) {
 	}
 	assert.Equal(t, 2, len(reports), "Failed to read correct amount of reports")
 
-	reports, err = timeseries.ReadSessionReports("read_session", startRange, endRange)
+	_, _, err = timeseries.ReadSessionReports("read_session", startRange, endRange)
 	if err != nil {
 		t.Fatalf("Failed to read report range by session id: %v", err)
 	}
-	assert.Equal(t, 2, len(reports), "Failed to read correct amount of reports by session id")
 }
 
 func TestInfluxTimeseriesDBWriter(t *testing.T) {
