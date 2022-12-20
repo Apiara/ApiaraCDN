@@ -61,7 +61,7 @@ type TimeseriesDBReader interface {
 	ReadContentSessions(cid string, start time.Time, end time.Time) ([]SessionDescription, error)
 }
 
-//TimeseriesDB is a combination of TimeseriesDBReader and TimeseriesDBWriter
+// TimeseriesDB is a combination of TimeseriesDBReader and TimeseriesDBWriter
 type TimeseriesDB interface {
 	TimeseriesDBReader
 	TimeseriesDBWriter
@@ -69,18 +69,54 @@ type TimeseriesDB interface {
 
 // mockTimeseriesDB is a testing mock for TimeseriesDB
 type mockTimeseriesDB struct {
-	reportCount int
-	descCount   int
+	reports map[string][]Report
+	descs   map[string][]SessionDescription
 }
 
-func (m *mockTimeseriesDB) WriteReport(Report, time.Time) error {
-	m.reportCount++
+func (m *mockTimeseriesDB) WriteReport(r Report, t time.Time) error {
+	sid := r.GetSessionID()
+	if _, ok := m.reports[sid]; !ok {
+		m.reports[sid] = make([]Report, 0)
+	}
+
+	m.reports[sid] = append(m.reports[sid], r)
 	return nil
 }
 
-func (m *mockTimeseriesDB) WriteDescription(SessionDescription, time.Time) error {
-	m.descCount++
+func (m *mockTimeseriesDB) WriteDescription(d SessionDescription, t time.Time) error {
+	sid := d.SessionID
+	if _, ok := m.descs[sid]; !ok {
+		m.descs[sid] = make([]SessionDescription, 0)
+	}
+	m.descs[sid] = append(m.descs[sid], d)
 	return nil
+}
+
+func (m *mockTimeseriesDB) ReadReportRange(time.Time, time.Time) ([]Report, error) {
+	reports := make([]Report, 0)
+	for _, reps := range m.reports {
+		reports = append(reports, reps...)
+	}
+	return reports, nil
+}
+
+func (m *mockTimeseriesDB) ReadSessionReports(sid string, start time.Time, end time.Time) (*ClientReport, *EndpointReport, error) {
+	if reps, ok := m.reports[sid]; ok && len(reps) == 2 {
+		_, ok := reps[0].(*ClientReport)
+		if !ok {
+			return reps[1].(*ClientReport), reps[0].(*EndpointReport), nil
+		}
+		return reps[0].(*ClientReport), reps[1].(*EndpointReport), nil
+	}
+	return nil, nil, fmt.Errorf("Failed to find session reports")
+}
+
+func (m *mockTimeseriesDB) ReadEndpointSessions(string, time.Time, time.Time) ([]SessionDescription, error) {
+	return nil, nil
+}
+
+func (m *mockTimeseriesDB) ReadContentSessions(string, time.Time, time.Time) ([]SessionDescription, error) {
+	return nil, nil
 }
 
 // InfluxTimeseriesDB implements TimeseriesDB using InfluxDB2

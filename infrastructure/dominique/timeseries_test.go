@@ -11,7 +11,7 @@ import (
 func TestInfluxDBTimeseriesDBReader(t *testing.T) {
 	// Initialize database and resources
 	dbURL := "http://localhost:8086"
-	dbToken := "dnV03GLrROV5E_mStsTl9d-J1tNPife9K0tij8t9ujjOhKzA6JiMyMyicPXGJ0YizAd9yxDbqGUHYS4tY5sYoQ=="
+	dbToken := "9mB5ncSMlx-b_rLao1DMQMeVoMRYn9jIN5fBnBTwS54V9qpgxjnTo2aYLCLALHLq6fOO8tAHmbT462bipVJj-Q=="
 	finder := infra.NewMockDataIndex()
 	finder.Create("read_cid", "read_fid", 2048, []string{})
 
@@ -91,7 +91,7 @@ func TestInfluxDBTimeseriesDBReader(t *testing.T) {
 
 func TestInfluxTimeseriesDBWriter(t *testing.T) {
 	dbURL := "http://localhost:8086"
-	dbToken := "dnV03GLrROV5E_mStsTl9d-J1tNPife9K0tij8t9ujjOhKzA6JiMyMyicPXGJ0YizAd9yxDbqGUHYS4tY5sYoQ=="
+	dbToken := "9mB5ncSMlx-b_rLao1DMQMeVoMRYn9jIN5fBnBTwS54V9qpgxjnTo2aYLCLALHLq6fOO8tAHmbT462bipVJj-Q=="
 	finder := infra.NewMockDataIndex()
 	finder.Create("url_fid", "fid", 1024, []string{})
 

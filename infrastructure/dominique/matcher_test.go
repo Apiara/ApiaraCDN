@@ -11,7 +11,7 @@ func TestTimedSessionProcessor(t *testing.T) {
 	// Create resources
 	ReportCollectionFrequency = time.Second
 	timeout := time.Second
-	timeseries := &mockTimeseriesDB{0, 0}
+	timeseries := &mockTimeseriesDB{make(map[string][]Report), make(map[string][]SessionDescription)}
 	matcher := NewTimedSessionProcessor(timeout, timeseries)
 
 	// Test good match
@@ -40,8 +40,8 @@ func TestTimedSessionProcessor(t *testing.T) {
 		t.Fatalf("Failed to add endpoint report: %v", err)
 	}
 
-	assert.Equal(t, timeseries.reportCount, 0, "Should have received no reports")
-	assert.Equal(t, timeseries.descCount, 1, "Should have received 1 description")
+	assert.Equal(t, len(timeseries.reports[sessionID]), 0, "Should have received no reports")
+	assert.Equal(t, len(timeseries.descs[sessionID]), 1, "Should have received 1 description")
 
 	// Test timeout match
 	if err := matcher.AddReport(cReport); err != nil {
@@ -49,5 +49,5 @@ func TestTimedSessionProcessor(t *testing.T) {
 	}
 
 	time.Sleep(timeout * 2)
-	assert.Equal(t, timeseries.reportCount, 1, "Should have received 1 report")
+	assert.Equal(t, len(timeseries.reports[sessionID]), 1, "Should have received 1 report")
 }
