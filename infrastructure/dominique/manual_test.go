@@ -36,7 +36,7 @@ func TestPostgresRemediationQueue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create postgres queue: %v", err)
 	}
-	if err = queue.Write(clientRep, endpointRep); err != nil {
+	if err = queue.Write(*clientRep, *endpointRep); err != nil {
 		t.Fatalf("Failed to write to postgres queue: %v", err)
 	}
 }

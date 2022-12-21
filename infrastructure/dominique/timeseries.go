@@ -56,7 +56,7 @@ Reports and SessionDescriptions by time range
 */
 type TimeseriesDBReader interface {
 	ReadReportRange(start time.Time, end time.Time) ([]Report, error)
-	ReadSessionReports(sid string, start time.Time, end time.Time) (*ClientReport, *EndpointReport, error)
+	ReadSessionReports(sid string, start time.Time, end time.Time) (ClientReport, EndpointReport, error)
 	ReadEndpointSessions(eid string, start time.Time, end time.Time) ([]SessionDescription, error)
 	ReadContentSessions(cid string, start time.Time, end time.Time) ([]SessionDescription, error)
 }
@@ -100,15 +100,15 @@ func (m *mockTimeseriesDB) ReadReportRange(time.Time, time.Time) ([]Report, erro
 	return reports, nil
 }
 
-func (m *mockTimeseriesDB) ReadSessionReports(sid string, start time.Time, end time.Time) (*ClientReport, *EndpointReport, error) {
+func (m *mockTimeseriesDB) ReadSessionReports(sid string, start time.Time, end time.Time) (ClientReport, EndpointReport, error) {
 	if reps, ok := m.reports[sid]; ok && len(reps) == 2 {
 		_, ok := reps[0].(*ClientReport)
 		if !ok {
-			return reps[1].(*ClientReport), reps[0].(*EndpointReport), nil
+			return *(reps[1].(*ClientReport)), *(reps[0].(*EndpointReport)), nil
 		}
-		return reps[0].(*ClientReport), reps[1].(*EndpointReport), nil
+		return *(reps[0].(*ClientReport)), *(reps[1].(*EndpointReport)), nil
 	}
-	return nil, nil, fmt.Errorf("Failed to find session reports")
+	return ClientReport{}, EndpointReport{}, fmt.Errorf("Failed to find session reports")
 }
 
 func (m *mockTimeseriesDB) ReadEndpointSessions(string, time.Time, time.Time) ([]SessionDescription, error) {
@@ -329,7 +329,7 @@ func (ts *InfluxTimeseriesDB) ReadReportRange(start time.Time, end time.Time) ([
 }
 
 // ReadSessionReports reads all data points from ReportsBucket that have a session_id that matched 'sid'
-func (ts *InfluxTimeseriesDB) ReadSessionReports(sid string, start time.Time, end time.Time) (*ClientReport, *EndpointReport, error) {
+func (ts *InfluxTimeseriesDB) ReadSessionReports(sid string, start time.Time, end time.Time) (ClientReport, EndpointReport, error) {
 	// Create query
 	startStr := start.UTC().Format(time.RFC3339)
 	endStr := end.UTC().Format(time.RFC3339)
@@ -339,9 +339,9 @@ func (ts *InfluxTimeseriesDB) ReadSessionReports(sid string, start time.Time, en
 	// Read reports
 	reports, err := ts.readReports(query)
 	if err != nil {
-		return nil, nil, err
+		return ClientReport{}, EndpointReport{}, err
 	} else if len(reports) != 2 {
-		return nil, nil, fmt.Errorf("Invalid number of session reports: %d", len(reports))
+		return ClientReport{}, EndpointReport{}, fmt.Errorf("Invalid number of session reports: %d", len(reports))
 	}
 
 	// Return reports
@@ -356,7 +356,7 @@ func (ts *InfluxTimeseriesDB) ReadSessionReports(sid string, start time.Time, en
 		clientReport = reports[1].(*ClientReport)
 		endpointReport = report
 	}
-	return clientReport, endpointReport, nil
+	return *clientReport, *endpointReport, nil
 }
 
 // ReadEndpointSessions reads all data points from SessionsBucket that are tagged with endpoint_id 'eid'

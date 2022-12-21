@@ -89,8 +89,8 @@ func NewTimedSessionProcessor(timeout time.Duration, timeseries TimeseriesDBWrit
 	return processor
 }
 
-func createSessionDescription(client *ClientReport,
-	endpoint *EndpointReport) (SessionDescription, error) {
+func createSessionDescription(client ClientReport,
+	endpoint EndpointReport) (SessionDescription, error) {
 	if client.SessionID != endpoint.SessionID {
 		return SessionDescription{}, conflictErr
 	}
@@ -115,7 +115,7 @@ func createSessionDescription(client *ClientReport,
 }
 
 func (t *TimedSessionProcessor) ingestSessionEntry(entry *processorEntry) error {
-	desc, err := createSessionDescription(entry.clientReport, entry.endpointReport)
+	desc, err := createSessionDescription(*entry.clientReport, *entry.endpointReport)
 	if err == conflictErr {
 		if tErr := t.timeseries.WriteReport(entry.clientReport, entry.firstSeen); tErr != nil {
 			return tErr

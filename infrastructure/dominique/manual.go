@@ -17,15 +17,15 @@ ManualRemediationQueue represents an object that can queue up reports that faile
 be remediated for manual remediation by a human
 */
 type ManualRemediationQueue interface {
-	Write(client *ClientReport, endpoint *EndpointReport) error
+	Write(client ClientReport, endpoint EndpointReport) error
 	Close() error
 }
 
 // mock implementation of ManualRemediationQueue for testing purposes
 type mockManualRemediationQueue struct{}
 
-func (m *mockManualRemediationQueue) Write(*ClientReport, *EndpointReport) error { return nil }
-func (m *mockManualRemediationQueue) Close() error                               { return nil }
+func (m *mockManualRemediationQueue) Write(ClientReport, EndpointReport) error { return nil }
+func (m *mockManualRemediationQueue) Close() error                             { return nil }
 
 /*
 PostgresRemediationQueue implements ManualRemediationQueue using a postgresql
@@ -73,7 +73,7 @@ func NewPostgresRemediationQueue(host string, port int, user string,
 }
 
 // Write stores the relevant information from the reports into the postgres remediation queue
-func (p *PostgresRemediationQueue) Write(client *ClientReport, endpoint *EndpointReport) error {
+func (p *PostgresRemediationQueue) Write(client ClientReport, endpoint EndpointReport) error {
 	insertStatement := "INSERT INTO " + PostgresRemediationTableName + "(session_id, functional_id, " +
 		"content_id, client_ip, endpoint_ip, endpoint_id, client_bytes_recv, client_bytes_needed, " +
 		"endpoint_bytes_served) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"

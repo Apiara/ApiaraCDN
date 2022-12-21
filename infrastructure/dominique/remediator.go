@@ -6,7 +6,7 @@ tries to create a consistent SessionDescription based on the Client and
 Endpoint reports
 */
 type Remediator interface {
-	Reconcile(*ClientReport, *EndpointReport) (SessionDescription, error)
+	Reconcile(ClientReport, EndpointReport) (SessionDescription, error)
 }
 
 /*
@@ -21,7 +21,7 @@ func NewTimeframeRemediator() *TimeframeRemediator {
 	return &TimeframeRemediator{}
 }
 
-func (r *TimeframeRemediator) Reconcile(client *ClientReport, endpoint *EndpointReport) (SessionDescription, error) {
+func (r *TimeframeRemediator) Reconcile(client ClientReport, endpoint EndpointReport) (SessionDescription, error) {
 	return createSessionDescription(client, endpoint)
 }
 
@@ -38,7 +38,7 @@ func NewByteOffsetRemediator(offsetAllowed int64) *ByteOffsetRemediator {
 	return &ByteOffsetRemediator{offsetAllowed}
 }
 
-func (r *ByteOffsetRemediator) Reconcile(client *ClientReport, endpoint *EndpointReport) (SessionDescription, error) {
+func (r *ByteOffsetRemediator) Reconcile(client ClientReport, endpoint EndpointReport) (SessionDescription, error) {
 	// Check for unreconcilable conflicts
 	if client.SessionID != endpoint.SessionID || client.FunctionalID != endpoint.FunctionalID {
 		return SessionDescription{}, conflictErr
