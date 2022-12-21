@@ -25,6 +25,8 @@ const (
 	DeusRouteAPIClientResource   = "/route/client"
 	DeusRouteAPIEndpointResource = "/route/endpoint"
 
+	DeusStaleReportAPIResource = "/report/stale"
+
 	DeusServiceAPIPushResource      = "/content/push"
 	DeusServiceAPIPurgeResource     = "/content/purge"
 	DeusServiceAPISetRegionResource = "/region/set"

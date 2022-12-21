@@ -22,6 +22,7 @@ type ContentLocationIndex interface {
 	Set(cid string, serverID string, dynamic bool) error
 	Remove(cid string, serverID string) error
 	IsServedByServer(cid string, serverID string) (bool, error)
+	ServerList(cid string) ([]string, error)
 	IsBeingServed(cid string) (bool, error)
 	WasDynamicallySet(cid string, serverID string) (bool, error)
 }
@@ -43,6 +44,10 @@ func (m *mockContentLocationIndex) Remove(cid string, server string) error {
 
 func (m *mockContentLocationIndex) IsBeingServed(cid string) (bool, error) {
 	return false, nil
+}
+
+func (m *mockContentLocationIndex) ServerList(cid string) ([]string, error) {
+	return nil, nil
 }
 
 func (m *mockContentLocationIndex) IsServedByServer(cid string, server string) (bool, error) {
@@ -128,6 +133,16 @@ func (r *RedisContentLocationIndex) IsBeingServed(cid string) (bool, error) {
 		return false, fmt.Errorf("Failed to check if being served: %w", err)
 	}
 	return count > 0, nil
+}
+
+func (r *RedisContentLocationIndex) ServerList(cid string) ([]string, error) {
+	safeCid := infra.URLToSafeName(cid)
+	cidKey := RedisContentToServerListPrefix + safeCid
+	serverList, err := r.rdb.SMembers(r.ctx, cidKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve members being served: %w", err)
+	}
+	return serverList, nil
 }
 
 func (r *RedisContentLocationIndex) WasDynamicallySet(cid string, serverID string) (bool, error) {
