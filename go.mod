@@ -14,6 +14,7 @@ require (
 	github.com/influxdata/influxdb v1.10.0 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.12.0 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
+	github.com/lib/pq v1.10.7 // indirect
 	github.com/oschwald/geoip2-golang v1.8.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
