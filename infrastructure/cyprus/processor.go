@@ -75,7 +75,7 @@ func generateFunctionalID(id string, streamCipher cipher.Stream) string {
 	return hex.EncodeToString(functionalID)
 }
 
-func calculateSHA256Checksum(fname string) ([]byte, error) {
+func CalculateSHA256Checksum(fname string) ([]byte, error) {
 	// Open file to calclulate checksum for
 	file, err := os.Open(fname)
 	if err != nil {
@@ -138,7 +138,7 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
 	plainFile.Close()
 
 	// Calculate checksum
-	checksum, err := calculateSHA256Checksum(outFile.Name())
+	checksum, err := CalculateSHA256Checksum(outFile.Name())
 	if err != nil {
 		return "", "", -1, fmt.Errorf("Failed to calculate checksum for file %s: %w", outFile.Name(), err)
 	}
@@ -156,11 +156,11 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
 digestRawMedia delegates to digestFile and returns a rawMedia
 instance and the processed media size
 */
-func (a *AESDataProcessor) digestRawMedia(block cipher.Block, media rawMedia) (rawMedia, int64, error) {
+func (a *AESDataProcessor) digestRawMedia(block cipher.Block, media RawMedia) (RawMedia, int64, error) {
 	// Create stream cipher for use in creating Functional ID
 	fidIV, err := generateRandomBytes(aes.BlockSize)
 	if err != nil {
-		return rawMedia{}, -1, err
+		return RawMedia{}, -1, err
 	}
 	fidCipher := cipher.NewCTR(block, fidIV)
 
@@ -177,11 +177,11 @@ the manifest. In addition to this, it encrypts all segment files in the passed i
 manifest and returns a manifest with the File pointers pointing to the encrypted
 data
 */
-func (a *AESDataProcessor) digestManifest(block cipher.Block, mediaMap manifest) (manifest, int64, error) {
+func (a *AESDataProcessor) digestManifest(block cipher.Block, mediaMap VODManifest) (VODManifest, int64, error) {
 	// Create stream cipher used to assist in creation of Functional IDs
 	fidIV, err := generateRandomBytes(aes.BlockSize)
 	if err != nil {
-		return manifest{}, -1, err
+		return VODManifest{}, -1, err
 	}
 	fidCipher := cipher.NewCTR(block, fidIV)
 
@@ -189,15 +189,15 @@ func (a *AESDataProcessor) digestManifest(block cipher.Block, mediaMap manifest)
 	fileSize := int64(0)
 	totalSize := int64(0)
 	mediaMap.FunctionalID = generateFunctionalID(mediaMap.URL, fidCipher)
-	completeStreams := make([]stream, 0)
+	completeStreams := make([]VODStream, 0)
 	for _, mediaStream := range mediaMap.Streams {
 		mediaStream.FunctionalID = generateFunctionalID(mediaStream.URL, fidCipher)
-		completeSegments := make([]segment, 0)
+		completeSegments := make([]VODSegment, 0)
 		for _, mediaSegment := range mediaStream.Segments {
 			mediaSegment.FunctionalID = generateFunctionalID(mediaSegment.URL, fidCipher)
 			mediaSegment.File, mediaSegment.Checksum, fileSize, err = a.digestFile(block, mediaSegment.File)
 			if err != nil {
-				return manifest{}, -1, err
+				return VODManifest{}, -1, err
 			}
 			totalSize += fileSize
 			completeSegments = append(completeSegments, mediaSegment)
@@ -226,8 +226,8 @@ func (a *AESDataProcessor) DigestMedia(ingest MediaIngest) (MediaDigest, error) 
 	// Delegate processing and create digest
 	digest := MediaDigest{CryptKey: aesKey, Type: ingest.Type}
 	switch ingest.Type {
-	case RawMedia:
-		media, size, err := a.digestRawMedia(block, ingest.Result.(rawMedia))
+	case RawMediaType:
+		media, size, err := a.digestRawMedia(block, ingest.Result.(RawMedia))
 		if err != nil {
 			return MediaDigest{}, fmt.Errorf("Failed to digest raw media file: %w", err)
 		}
@@ -235,8 +235,8 @@ func (a *AESDataProcessor) DigestMedia(ingest MediaIngest) (MediaDigest, error) 
 		digest.FunctionalID = media.FunctionalID
 		digest.ByteSize = size
 		break
-	case VODMedia:
-		mediaMap, size, err := a.digestManifest(block, ingest.Result.(manifest))
+	case VODMediaType:
+		mediaMap, size, err := a.digestManifest(block, ingest.Result.(VODManifest))
 		if err != nil {
 			return MediaDigest{}, fmt.Errorf("Failed to digest manifest: %w", err)
 		}

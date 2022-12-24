@@ -37,18 +37,18 @@ func TestFilesystemStorageManager(t *testing.T) {
 	}
 
 	digest := MediaDigest{
-		Type:         VODMedia,
+		Type:         VODMediaType,
 		CryptKey:     cryptKey,
 		FunctionalID: fid,
-		Result: manifest{
+		Result: VODManifest{
 			URL:          url,
 			FunctionalID: fid,
-			Streams: []stream{
-				stream{
+			Streams: []VODStream{
+				{
 					URL:          "http://stream.com",
 					FunctionalID: "functional2",
-					Segments: []segment{
-						segment{
+					Segments: []VODSegment{
+						{
 							Index:        0,
 							URL:          "http://segment.com",
 							FunctionalID: "functional3",
@@ -76,7 +76,7 @@ func TestFilesystemStorageManager(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	digest.Result.(manifest).Streams[0].Segments[0].File = testFile
+	digest.Result.(VODManifest).Streams[0].Segments[0].File = testFile
 
 	if err = storage.Publish(digest); err != nil {
 		t.Fatalf("Failed to publish manifest: %v", err)

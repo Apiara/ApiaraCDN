@@ -64,7 +64,7 @@ func NewFilesystemStorageManager(storageDir string, state infra.DataIndex) (*Fil
 }
 
 // publishManifest publishes digested manifest resources to the appropriate data stores
-func (s *FilesystemStorageManager) publishManifest(mediaMap manifest, key []byte) ([]string, error) {
+func (s *FilesystemStorageManager) publishManifest(mediaMap VODManifest, key []byte) ([]string, error) {
 	// Create list of all created resources
 	resources := make([]string, 0)
 
@@ -115,7 +115,7 @@ func (s *FilesystemStorageManager) publishManifest(mediaMap manifest, key []byte
 }
 
 // publishRawMedia publishes the digested media data to the proper data stores
-func (s *FilesystemStorageManager) publishRawMedia(media rawMedia, key []byte) ([]string, error) {
+func (s *FilesystemStorageManager) publishRawMedia(media RawMedia, key []byte) ([]string, error) {
 	// Create list of all created resources
 	resources := make([]string, 0)
 
@@ -178,14 +178,14 @@ func (s *FilesystemStorageManager) Publish(digest MediaDigest) error {
 
 	// Publish digest based on MediaType
 	switch digest.Type {
-	case RawMedia:
-		media := digest.Result.(rawMedia)
+	case RawMediaType:
+		media := digest.Result.(RawMedia)
 		url = media.URL
 		fid = media.FunctionalID
 		resources, err = s.publishRawMedia(media, digest.CryptKey)
 		break
-	case VODMedia:
-		mediaManifest := digest.Result.(manifest)
+	case VODMediaType:
+		mediaManifest := digest.Result.(VODManifest)
 		url = mediaManifest.URL
 		fid = mediaManifest.FunctionalID
 		resources, err = s.publishManifest(mediaManifest, digest.CryptKey)

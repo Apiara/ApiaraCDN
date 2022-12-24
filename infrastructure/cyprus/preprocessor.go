@@ -2,6 +2,7 @@ package cyprus
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -16,10 +17,10 @@ type MediaType int
 
 const (
 	// Represents raw media files(ex. MP4, MOV)
-	RawMedia MediaType = iota
+	RawMediaType MediaType = iota
 
 	// Represents manifest based VOD formats(ex. HLS, MPEG-DASH)
-	VODMedia
+	VODMediaType
 )
 
 const (
@@ -33,8 +34,25 @@ type MediaIngest struct {
 }
 
 /*
-	DataPreprocessor represents an object that can perform preprocessing tasks
+RemoveIngestArtifacts is a helper function for removing all
+local files referenced/created by a MediaIngest
+*/
+func RemoveIngestArtifacts(ingest MediaIngest) {
+	switch mediaMap := ingest.Result.(type) {
+	case *VODManifest:
+		for _, mediaStream := range mediaMap.Streams {
+			for _, mediaSegment := range mediaStream.Segments {
+				os.Remove(mediaSegment.File)
+			}
+		}
+		break
+	case *RawMedia:
+		os.Remove(mediaMap.File)
+	}
+}
 
+/*
+DataPreprocessor represents an object that can perform preprocessing tasks
 for data attempting to be uploaded to the network
 */
 type DataPreprocessor interface {
@@ -42,8 +60,7 @@ type DataPreprocessor interface {
 }
 
 /*
-	CompoundPreprocessor implements DataPreprocessor by checking URL extensions
-
+CompoundPreprocessor implements DataPreprocessor by checking URL extensions
 and routing to the media type specific preprocessor
 */
 type CompoundPreprocessor struct {
@@ -51,8 +68,7 @@ type CompoundPreprocessor struct {
 }
 
 /*
-	NewCompoundPreprocessor creates a new CompoundPreprocessor with the
-
+NewCompoundPreprocessor creates a new CompoundPreprocessor with the
 provided extension to DataPreprocessor mapping
 */
 func NewCompoundPreprocessor(extensionMap map[string]DataPreprocessor) *CompoundPreprocessor {
@@ -74,13 +90,13 @@ func (c *CompoundPreprocessor) IngestMedia(url string) (MediaIngest, error) {
 // RawPreprocessor implements DataPreprocessor for raw media files(ex. mp4)
 type RawPreprocessor struct {
 	outputDir    string
-	retrieveFile func(*os.File, string) error
+	retrieveFile func(string, io.Writer) error
 }
 
 func NewRawPreprocessor(workingPath string) *RawPreprocessor {
 	return &RawPreprocessor{
 		outputDir:    workingPath,
-		retrieveFile: downloadFile,
+		retrieveFile: DownloadFile,
 	}
 }
 
@@ -93,12 +109,12 @@ func (r *RawPreprocessor) IngestMedia(fileURL string) (MediaIngest, error) {
 	}
 	defer outFile.Close()
 
-	if err := r.retrieveFile(outFile, fileURL); err != nil {
+	if err := r.retrieveFile(fileURL, outFile); err != nil {
 		return MediaIngest{}, fmt.Errorf("Failed to download %s to %s: %w", fileURL, outFile.Name(), err)
 	}
 	return MediaIngest{
-		Type: RawMedia,
-		Result: rawMedia{
+		Type: RawMediaType,
+		Result: RawMedia{
 			URL:  fileURL,
 			File: outFile.Name(),
 		},
@@ -108,34 +124,34 @@ func (r *RawPreprocessor) IngestMedia(fileURL string) (MediaIngest, error) {
 // HLSPreprocessor implements DataPreprocessor for HLS Manifest Files
 type HLSPreprocessor struct {
 	outputDir    string
-	retrieveFile func(*os.File, string) error
+	retrieveFile func(string, io.Writer) error
 }
 
 // NewHLSPreprocessor creates a new HLSPreprocessor where outputs are stored at workingDir
 func NewHLSPreprocessor(workingDir string) *HLSPreprocessor {
 	return &HLSPreprocessor{
 		outputDir:    workingDir,
-		retrieveFile: downloadFile,
+		retrieveFile: DownloadFile,
 	}
 }
 
-func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Playlist) (stream, error) {
+func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Playlist) (VODStream, error) {
 	hlsSegments := playlist.Segments()
-	genericSegments := make([]segment, 0, len(hlsSegments))
+	genericSegments := make([]VODSegment, 0, len(hlsSegments))
 	for i, hlsSegment := range hlsSegments {
 		segmentURL := path.Join(basePath, hlsSegment.Segment)
 		segmentFile, err := ioutil.TempFile(r.outputDir, ingestFilePattern)
 		if err != nil {
-			return stream{}, fmt.Errorf("Failed to create ingest file: %w", err)
+			return VODStream{}, fmt.Errorf("Failed to create ingest file: %w", err)
 		}
 
-		if err := r.retrieveFile(segmentFile, segmentURL); err != nil {
+		if err := r.retrieveFile(segmentURL, segmentFile); err != nil {
 			segmentFile.Close()
-			return stream{}, fmt.Errorf("Failed to download segment %s: %w", segmentURL, err)
+			return VODStream{}, fmt.Errorf("Failed to download segment %s: %w", segmentURL, err)
 		}
 		segmentFile.Close()
 
-		genericSegments = append(genericSegments, segment{
+		genericSegments = append(genericSegments, VODSegment{
 			Index:        i,
 			URL:          segmentURL,
 			FunctionalID: "",
@@ -143,7 +159,7 @@ func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Pl
 		})
 	}
 
-	return stream{
+	return VODStream{
 		FunctionalID: "",
 		Segments:     genericSegments,
 	}, nil
@@ -155,7 +171,7 @@ func (r *HLSPreprocessor) getManifest(manifestURL string) (*m3u8.Playlist, error
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create temporary file: %w", err)
 	}
-	if err = r.retrieveFile(outFile, manifestURL); err != nil {
+	if err = r.retrieveFile(manifestURL, outFile); err != nil {
 		outFile.Close()
 		return nil, fmt.Errorf("Failed to download manifest at %s: %w", manifestURL, err)
 	}
@@ -172,8 +188,7 @@ func (r *HLSPreprocessor) getManifest(manifestURL string) (*m3u8.Playlist, error
 }
 
 /*
-	Ingest fetches all data associated with manifestURL and creates an internal
-
+Ingest fetches all data associated with manifestURL and creates an internal
 manifest object to represent the VOD media map and point to appropriate system file locations
 */
 func (r *HLSPreprocessor) IngestMedia(manifestURL string) (MediaIngest, error) {
@@ -184,7 +199,7 @@ func (r *HLSPreprocessor) IngestMedia(manifestURL string) (MediaIngest, error) {
 	}
 
 	baseURL := path.Dir(manifestURL)
-	streams := make([]stream, 0)
+	streams := make([]VODStream, 0)
 	if masterManifest.IsMaster() { // Handle case of master manifest with different stream sub manifests
 		playlists := masterManifest.Playlists()
 		for _, playlist := range playlists {
@@ -219,8 +234,8 @@ func (r *HLSPreprocessor) IngestMedia(manifestURL string) (MediaIngest, error) {
 
 	// Create and return preprocess result
 	return MediaIngest{
-		Type: VODMedia,
-		Result: manifest{
+		Type: VODMediaType,
+		Result: VODManifest{
 			URL:          manifestURL,
 			FunctionalID: "",
 			Streams:      streams,

@@ -1,93 +1,92 @@
 package cyprus
 
 import (
-  "os"
-  "net/http"
-  "io"
+	"io"
+	"net/http"
 )
 
 const (
-  DefaultStreamName = "default"
+	DefaultStreamName = "default"
 )
 
 type (
-  manifest struct {
-    URL string `json:"url"`
-    FunctionalID string `json:"fid"`
-    Streams []stream `json:"streams"`
-  }
+	VODManifest struct {
+		URL          string      `json:"url"`
+		FunctionalID string      `json:"fid"`
+		Streams      []VODStream `json:"streams"`
+	}
 
-  stream struct {
-    URL string `json:"url"`
-    FunctionalID string `json:"fid"`
-    Segments []segment `json:"segments"`
-  }
+	VODStream struct {
+		URL          string       `json:"url"`
+		FunctionalID string       `json:"fid"`
+		Segments     []VODSegment `json:"segments"`
+	}
 
-  segment struct {
-    Index int `json:"index"`
-    URL string `json:"url"`
-    FunctionalID string `json:"fid"`
-    Checksum string `json:"checksum"`
-    File string `json:"-"`
-  }
+	VODSegment struct {
+		Index        int    `json:"index"`
+		URL          string `json:"url"`
+		FunctionalID string `json:"fid"`
+		Checksum     string `json:"checksum"`
+		File         string `json:"-"`
+	}
 )
 
 type (
-  partialManifest struct {
-    FunctionalID string `json:"fid"`
-    Segments []partialSegment `json:"segments"`
-  }
+	PartialVODManifest struct {
+		FunctionalID string              `json:"fid"`
+		Segments     []PartialVODSegment `json:"segments"`
+	}
 
-  partialSegment struct {
-    FunctionalID string `json:"fid"`
-    Checksum string `json:"checksum"`
-  }
+	PartialVODSegment struct {
+		FunctionalID string `json:"fid"`
+		Checksum     string `json:"checksum"`
+	}
 )
 
-func completeToPartialManifest(mediaMap manifest) partialManifest {
-  pMediaMap := partialManifest{
-    FunctionalID: mediaMap.FunctionalID,
-    Segments: make([]partialSegment, 0),
-  }
+func completeToPartialManifest(mediaMap VODManifest) PartialVODManifest {
+	pMediaMap := PartialVODManifest{
+		FunctionalID: mediaMap.FunctionalID,
+		Segments:     make([]PartialVODSegment, 0),
+	}
 
-  for _, mediaStream := range mediaMap.Streams {
-    for _, mediaSegment := range mediaStream.Segments {
-      pMediaMap.Segments = append(pMediaMap.Segments, partialSegment{
-        FunctionalID: mediaSegment.FunctionalID,
-        Checksum: mediaSegment.Checksum,
-      })
-    }
-  }
-  return pMediaMap
+	for _, mediaStream := range mediaMap.Streams {
+		for _, mediaSegment := range mediaStream.Segments {
+			pMediaMap.Segments = append(pMediaMap.Segments, PartialVODSegment{
+				FunctionalID: mediaSegment.FunctionalID,
+				Checksum:     mediaSegment.Checksum,
+			})
+		}
+	}
+	return pMediaMap
 }
 
-type rawMedia struct {
-  URL string `json:"url"`
-  FunctionalID string `json:"fid"`
-  Checksum string `json:"url"`
-  File string `json:"-"`
+type RawMedia struct {
+	URL          string `json:"url"`
+	FunctionalID string `json:"fid"`
+	Checksum     string `json:"checksum"`
+	File         string `json:"-"`
 }
 
-type partialRawMedia struct {
-  FunctionalID string `json:"fid"`
-  Checksum string `json:"url"`
+type PartialRawMedia struct {
+	FunctionalID string `json:"fid"`
+	Checksum     string `json:"checksum"`
 }
 
-func completeToPartialRawMedia(media rawMedia) partialRawMedia {
-  return partialRawMedia{
-    FunctionalID: media.FunctionalID,
-    Checksum: media.Checksum,
-  }
+func completeToPartialRawMedia(media RawMedia) PartialRawMedia {
+	return PartialRawMedia{
+		FunctionalID: media.FunctionalID,
+		Checksum:     media.Checksum,
+	}
 }
 
 // helper func to download files from the internet
-func downloadFile(outFile *os.File, url string) error {
-  resp, err := http.Get(url)
-  if err != nil {
-    return err
-  }
-  defer resp.Body.Close()
+func DownloadFile(url string, outFile io.Writer) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-  _, err = io.Copy(outFile, resp.Body)
-  return err
+	_, err = io.Copy(outFile, resp.Body)
+	return err
 }
