@@ -45,6 +45,10 @@ func handleStaleReport(cid string, checker DataValidator,
 	}
 }
 
+/*
+StartStaleReadReportAPI takes reports of possible stale data, checks if the external
+copy of the data matches the internal copy, and updates the internal copy if need be
+*/
 func StartStaleReadReportAPI(listenAddr string, checker DataValidator,
 	locIndex ContentLocationIndex, manager ContentManager) {
 

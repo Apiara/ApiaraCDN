@@ -37,7 +37,7 @@ NewChecksumDataValidator creates a new ChecksumDataValidator with the provided
 preprocessor and dataIndex, retrieving internal copies of data from the
 internalDataAddr base URL
 */
-func NewChecksumDataValidtor(internalDataAddr string, preprocessor cyprus.DataPreprocessor,
+func NewChecksumDataValidator(internalDataAddr string, preprocessor cyprus.DataPreprocessor,
 	dataIndex infra.DataIndexReader) (*ChecksumDataValidator, error) {
 
 	contentBaseURL, err := url.JoinPath(internalDataAddr, infra.CryptDataStorageDir)
