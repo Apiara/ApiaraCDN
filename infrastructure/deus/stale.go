@@ -30,7 +30,6 @@ type ChecksumDataValidator struct {
 	mediaPreprocessor cyprus.DataPreprocessor
 	dataIndex         infra.DataIndexReader
 	contentBaseURL    string
-	retrieveFile      func(string, io.Writer) error
 }
 
 /*
@@ -64,7 +63,6 @@ func NewChecksumDataValidtor(internalDataAddr string, preprocessor cyprus.DataPr
 		mediaPreprocessor: preprocessor,
 		dataIndex:         dataIndex,
 		contentBaseURL:    contentBaseURL,
-		retrieveFile:      cyprus.DownloadFile,
 	}, nil
 }
 

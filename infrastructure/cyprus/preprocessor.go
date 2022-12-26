@@ -60,6 +60,18 @@ type DataPreprocessor interface {
 	IngestMedia(url string) (MediaIngest, error) //Outputs folder output and error
 }
 
+// MockDataPreprocessor is a testing mock for DataPreprocessor
+type MockDataPreprocessor struct {
+	Ingests map[string]MediaIngest
+}
+
+func (m *MockDataPreprocessor) IngestMedia(fname string) (MediaIngest, error) {
+	if ingest, ok := m.Ingests[fname]; ok {
+		return ingest, nil
+	}
+	return MediaIngest{}, fmt.Errorf("Ingest for %s doesn't exist", fname)
+}
+
 /*
 CompoundPreprocessor implements DataPreprocessor by checking URL extensions
 and routing to the media type specific preprocessor
