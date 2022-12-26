@@ -1,0 +1,18 @@
+{
+    "url": "test_manifest_url",
+    "fid": "test_fid",
+    "streams": [
+        {
+            "url": "test_stream_1_url",
+            "fid": "test_stream_1_fid",
+            "segments": [
+                {
+                    "index": 0,
+                    "url": "test_stream_1_segment_1_url",
+                    "fid": "test_stream_1_segment_1_fid",
+                    "checksum": "test_stream_1_segment_1_checksum"
+                }
+            ]
+        }
+    ] 
+}

@@ -3,6 +3,7 @@ package cyprus
 import (
 	"io"
 	"net/http"
+	"os"
 )
 
 const (
@@ -89,4 +90,17 @@ func DownloadFile(url string, outFile io.Writer) error {
 
 	_, err = io.Copy(outFile, resp.Body)
 	return err
+}
+
+// Testing replacement function for DownloadFile
+func CopyFromDisk(fname string, outFile io.Writer) error {
+	inFile, err := os.Open(fname)
+	if err != nil {
+		return err
+	}
+
+	if _, err = io.Copy(outFile, inFile); err != nil {
+		return err
+	}
+	return nil
 }

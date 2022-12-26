@@ -33,6 +33,41 @@ type ChecksumDataValidator struct {
 	retrieveFile      func(string, io.Writer) error
 }
 
+/*
+NewChecksumDataValidator creates a new ChecksumDataValidator with the provided
+preprocessor and dataIndex, retrieving internal copies of data from the
+internalDataAddr base URL
+*/
+func NewChecksumDataValidtor(internalDataAddr string, preprocessor cyprus.DataPreprocessor,
+	dataIndex infra.DataIndexReader) (*ChecksumDataValidator, error) {
+
+	contentBaseURL, err := url.JoinPath(internalDataAddr, infra.CryptDataStorageDir)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create content download base URL: %w", err)
+	}
+	metadataBaseURL, err := url.JoinPath(internalDataAddr, infra.CompleteMediaMapDir)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create metadata download base URL: %w", err)
+	}
+	keyBaseURL, err := url.JoinPath(internalDataAddr, infra.AESKeyStorageDir)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create key download base URL: %w", err)
+	}
+
+	return &ChecksumDataValidator{
+		accessor: &aesInternalDataAccessor{
+			metadataBaseURL: metadataBaseURL,
+			keyBaseURL:      keyBaseURL,
+			contentBaseURL:  contentBaseURL,
+			retrieveFile:    cyprus.DownloadFile,
+		},
+		mediaPreprocessor: preprocessor,
+		dataIndex:         dataIndex,
+		contentBaseURL:    contentBaseURL,
+		retrieveFile:      cyprus.DownloadFile,
+	}, nil
+}
+
 func (c *ChecksumDataValidator) getRawMediaInternalChecksum(cid string) ([]byte, error) {
 	// Calculate content location
 	fid, err := c.dataIndex.GetFunctionalID(cid)

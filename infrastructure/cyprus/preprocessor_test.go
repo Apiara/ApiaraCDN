@@ -1,7 +1,6 @@
 package cyprus
 
 import (
-	"io"
 	"os"
 	"path"
 	"strings"
@@ -10,22 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func copyFromDisk(fname string, outFile io.Writer) error {
-	inFile, err := os.Open(fname)
-	if err != nil {
-		return err
-	}
-
-	if _, err = io.Copy(outFile, inFile); err != nil {
-		return err
-	}
-	return nil
-}
-
 func TestRawPreprocessor(t *testing.T) {
 	preprocessor := &RawPreprocessor{
 		outputDir:    "./test_resources/working",
-		retrieveFile: copyFromDisk,
+		retrieveFile: CopyFromDisk,
 	}
 
 	testFname := "./test_resources/hls/index_1_1.ts"
@@ -56,7 +43,7 @@ func TestRawPreprocessor(t *testing.T) {
 func TestHLSPreprocessor(t *testing.T) {
 	preprocessor := &HLSPreprocessor{
 		outputDir:    "./test_resources/working",
-		retrieveFile: copyFromDisk,
+		retrieveFile: CopyFromDisk,
 	}
 
 	testFname := "./test_resources/hls/master.m3u8"

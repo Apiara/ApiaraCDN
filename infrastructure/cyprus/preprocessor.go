@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -139,7 +140,10 @@ func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Pl
 	hlsSegments := playlist.Segments()
 	genericSegments := make([]VODSegment, 0, len(hlsSegments))
 	for i, hlsSegment := range hlsSegments {
-		segmentURL := path.Join(basePath, hlsSegment.Segment)
+		segmentURL, err := url.JoinPath(basePath, hlsSegment.Segment)
+		if err != nil {
+			return VODStream{}, fmt.Errorf("Failed to create segment download url: %w", err)
+		}
 		segmentFile, err := ioutil.TempFile(r.outputDir, ingestFilePattern)
 		if err != nil {
 			return VODStream{}, fmt.Errorf("Failed to create ingest file: %w", err)
@@ -204,7 +208,10 @@ func (r *HLSPreprocessor) IngestMedia(manifestURL string) (MediaIngest, error) {
 		playlists := masterManifest.Playlists()
 		for _, playlist := range playlists {
 			// Retrieve and parse sub manifests
-			subManifestURL := path.Join(baseURL, playlist.URI)
+			subManifestURL, err := url.JoinPath(baseURL, playlist.URI)
+			if err != nil {
+				return MediaIngest{}, fmt.Errorf("Failed to create sub manifest download URL: %w", err)
+			}
 			subManifest, err := r.getManifest(subManifestURL)
 			if err != nil {
 				return MediaIngest{}, fmt.Errorf("Failed to retrieve sub manifest %s: %w", subManifestURL, err)
