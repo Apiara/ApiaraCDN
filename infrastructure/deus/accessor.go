@@ -103,7 +103,7 @@ func (d *aesInternalDataAccessor) GetContent(url string, key []byte, out io.Writ
 	iv := make([]byte, aes.BlockSize)
 	_, err = file.Read(iv)
 	if err != nil {
-		return fmt.Errorf("Faield to extract IV from %s: %w", url, err)
+		return fmt.Errorf("Failed to extract IV from %s: %w", url, err)
 	}
 
 	// Decrypt data
