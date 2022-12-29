@@ -70,15 +70,19 @@ func NewThresholdPullDecider(validator ContentValidator, contentManager ContentM
 
 				if !serving {
 					if count > requestThreshold {
+						contentManager.Lock()
 						if err := contentManager.Serve(cid, serverAddr, true); err != nil {
 							log.Println(err)
 						}
+						contentManager.Unlock()
 					}
 				} else if count < requestThreshold { // Remove data if below threshold and being served
+					contentManager.Lock()
 					if err := contentManager.Remove(cid, serverAddr, true); err != nil {
 						delete(decider.requestCounts, key)
 						log.Println(err)
 					}
+					contentManager.Unlock()
 				}
 			}
 

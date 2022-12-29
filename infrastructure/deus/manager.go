@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
@@ -23,10 +24,13 @@ var (
 type ContentManager interface {
 	Serve(cid string, serverAddr string, dynamic bool) error
 	Remove(cid string, serverAddr string, dynamic bool) error
+	Lock()
+	Unlock()
 }
 
 // mockContentManager is a mock implementation for testing
 type mockContentManager struct {
+	mutex   *sync.Mutex
 	serving map[string]bool
 }
 
@@ -40,8 +44,12 @@ func (m *mockContentManager) Remove(cid string, server string, dyn bool) error {
 	return nil
 }
 
+func (m *mockContentManager) Lock()   { m.mutex.Lock() }
+func (m *mockContentManager) Unlock() { m.mutex.Unlock() }
+
 // MasterContentManager implements ContentManager
 type MasterContentManager struct {
+	mutex                *sync.Mutex
 	serveState           ContentLocationIndex
 	dataIndex            infra.DataIndex
 	httpClient           *http.Client
@@ -81,6 +89,7 @@ func NewMasterContentManager(serverState ContentLocationIndex, index infra.DataI
 	}
 
 	return &MasterContentManager{
+		mutex:                &sync.Mutex{},
 		serveState:           serverState,
 		dataIndex:            index,
 		httpClient:           http.DefaultClient,
@@ -301,4 +310,17 @@ func (m *MasterContentManager) Remove(cid string, serverAddr string, dynamic boo
 		}
 	}
 	return nil
+}
+
+/*
+Use Lock every time Set, Remove, or any combination of MasterContentManager calls are
+made that are supposed to be a single unit(ie. a transaction)
+*/
+func (m *MasterContentManager) Lock() {
+	m.mutex.Lock()
+}
+
+// Call Unlock when you are done with a MasterContentManager transaction
+func (m *MasterContentManager) Unlock() {
+	m.mutex.Unlock()
 }

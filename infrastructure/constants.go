@@ -2,6 +2,7 @@ package infrastructure
 
 const (
 	ContentIDHeader    = "content_id"
+	ServerIDHeader     = "server_id"
 	FunctionalIDHeader = "functional_id"
 	ByteSizeHeader     = "bytes"
 )

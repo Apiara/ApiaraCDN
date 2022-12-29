@@ -1,12 +1,15 @@
-package deus
+package amada
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
+	"github.com/Apiara/ApiaraCDN/infrastructure/deus"
 )
 
 func matchReqToRegionalServer(req *http.Request, geoFinder IPGeoFinder,
@@ -23,12 +26,32 @@ func matchReqToRegionalServer(req *http.Request, geoFinder IPGeoFinder,
 	return serverIndex.GetAddress(loc)
 }
 
+func sendNewRequestUpdate(addr string, cid string, serverAddr string) error {
+	req, err := http.NewRequest("GET", addr, nil)
+	if err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	query.Add(infra.ContentIDHeader, cid)
+	query.Add(infra.ServerIDHeader, serverAddr)
+	req.URL.RawQuery = query.Encode()
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	} else if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Received unsuccessful http response: %d", resp.StatusCode)
+	}
+	return nil
+}
+
 /*
 StartDeviceRoutingAPI starts the API used by clients and endpoints to find
 region based session servers
 */
 func StartDeviceRoutingAPI(listenAddr string, geoFinder IPGeoFinder,
-	dataState ContentLocationIndex, serverIndex GeoServerIndex, decider PullDecider) {
+	dataState deus.ContentLocationIndexReader, serverIndex GeoServerIndex, deciderAPIAddr string) {
 
 	//Response type for all routing API requests
 	type RouteResponse struct {
@@ -36,7 +59,7 @@ func StartDeviceRoutingAPI(listenAddr string, geoFinder IPGeoFinder,
 	}
 
 	routeAPI := http.NewServeMux()
-	routeAPI.HandleFunc(infra.DeusRouteAPIClientResource,
+	routeAPI.HandleFunc(infra.AmadaRouteAPIClientResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			// Lookup local session server for client region
 			serverAddr, err := matchReqToRegionalServer(req, geoFinder, serverIndex)
@@ -48,7 +71,7 @@ func StartDeviceRoutingAPI(listenAddr string, geoFinder IPGeoFinder,
 
 			// Forward request to Pull Decider
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			err = decider.NewRequest(cid, serverAddr)
+			err = sendNewRequestUpdate(deciderAPIAddr, cid, serverAddr)
 			if err != nil {
 				log.Printf("Request for %s was not ingested by decider: %v", cid, err)
 			}
@@ -72,7 +95,7 @@ func StartDeviceRoutingAPI(listenAddr string, geoFinder IPGeoFinder,
 			}
 		})
 
-	routeAPI.HandleFunc(infra.DeusRouteAPIEndpointResource,
+	routeAPI.HandleFunc(infra.AmadaRouteAPIEndpointResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			// Lookup regional server for endpoint region
 			serverAddr, err := matchReqToRegionalServer(req, geoFinder, serverIndex)

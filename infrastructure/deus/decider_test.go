@@ -1,13 +1,14 @@
 package deus
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
 
 func TestThresholdPullDecider(t *testing.T) {
 	validator := &mockContentValidator{}
-	manager := &mockContentManager{make(map[string]bool)}
+	manager := &mockContentManager{&sync.Mutex{}, make(map[string]bool)}
 	state := &mockContentLocationIndex{map[string]struct{}{}}
 	threshold := 10
 	interval := time.Second

@@ -14,17 +14,27 @@ const (
 	RedisContentPullStatusPrefix   = "deus:dynamic:cid:sid:"
 )
 
-/*
-ContentState allows changing/viewing of what content is being served on
-what session servers in the network
-*/
-type ContentLocationIndex interface {
-	Set(cid string, serverID string, dynamic bool) error
-	Remove(cid string, serverID string) error
+// Reader sub-interface for ContentLocationIndex
+type ContentLocationIndexReader interface {
 	IsServedByServer(cid string, serverID string) (bool, error)
 	ServerList(cid string) ([]string, error)
 	IsBeingServed(cid string) (bool, error)
 	WasDynamicallySet(cid string, serverID string) (bool, error)
+}
+
+// Writer sub-interface for ContentLocationIndex
+type ContentLocationIndexWriter interface {
+	Set(cid string, serverID string, dynamic bool) error
+	Remove(cid string, serverID string) error
+}
+
+/*
+ContentLocationIndex allows changing/viewing of what content is being served on
+what session servers in the network
+*/
+type ContentLocationIndex interface {
+	ContentLocationIndexReader
+	ContentLocationIndexWriter
 }
 
 // mockContentState is a mock implementation for testing
@@ -57,13 +67,13 @@ func (m *mockContentLocationIndex) IsServedByServer(cid string, server string) (
 
 func (m *mockContentLocationIndex) WasDynamicallySet(string, string) (bool, error) { return true, nil }
 
-// RedisContentState implements ContentState using Redis
+// RedisContentLocationIndex implements ContentState using Redis
 type RedisContentLocationIndex struct {
 	rdb *redis.Client
 	ctx context.Context
 }
 
-// NewRedisContentState creates a new RedisContentState using address 'addr'
+// NewRedisContentLocationIndex creates a new RedisContentLocationIndex using address 'addr'
 func NewRedisContentLocationIndex(addr string) *RedisContentLocationIndex {
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,

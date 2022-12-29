@@ -7,22 +7,61 @@ import (
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
-const (
-	MMDBFileNameHeader = "mmdb"
-	RegionNameHeader   = "region_id"
-	ServerIDHeader     = "server_id"
-)
+func handleStaleReport(cid string, checker DataValidator,
+	locIndex ContentLocationIndex, manager ContentManager) {
+
+	// Check report validity
+	stale, err := checker.IsStale(cid)
+	if err != nil {
+		log.Printf("Failed to check stale status of %s: %v\n", cid, err)
+		return
+	}
+	if !stale {
+		return
+	}
+
+	// Find all affected servers
+	dynamic := make(map[string]bool)
+	serverList, err := locIndex.ServerList(cid)
+	if err != nil {
+		log.Printf("Failed to lookup list of servers serving %s: %v\n", cid, err)
+		return
+	}
+
+	// Remove stale data
+	manager.Lock()
+	defer manager.Unlock()
+	for _, serverID := range serverList {
+		dynamic[serverID], err = locIndex.WasDynamicallySet(cid, serverID)
+		if err != nil {
+			log.Printf("Failed to lookup if %s was dynamically set to server %s: %v\n", cid, serverID, err)
+		} else if err = manager.Remove(cid, serverID, dynamic[serverID]); err != nil {
+			log.Printf("Failed to remove %s from server %s: %v\n", cid, serverID, err)
+		}
+	}
+
+	// Re-process removed content
+	for _, serverID := range serverList {
+		if err = manager.Serve(cid, serverID, dynamic[serverID]); err != nil {
+			locIndex.Remove(cid, serverID)
+			log.Printf("Failed to re-add %s to server %s: %v\n", cid, serverID, err)
+		}
+	}
+}
 
 // StartServiceAPI starts the API used for changing of network state during runtime
-func StartServiceAPI(listenAddr string, manager ContentManager, servers GeoServerIndex, geoFinder IPGeoFinder) {
+func StartServiceAPI(listenAddr string, checker DataValidator, locIndex ContentLocationIndex,
+	decider PullDecider, manager ContentManager) {
 	serviceAPI := http.NewServeMux()
 
 	// Push allows manually pushing of data onto the network
 	serviceAPI.HandleFunc(infra.DeusServiceAPIPushResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			serverID := req.URL.Query().Get(ServerIDHeader)
+			serverID := req.URL.Query().Get(infra.ServerIDHeader)
 
+			manager.Lock()
+			defer manager.Unlock()
 			if err := manager.Serve(cid, serverID, false); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)
@@ -33,43 +72,29 @@ func StartServiceAPI(listenAddr string, manager ContentManager, servers GeoServe
 	serviceAPI.HandleFunc(infra.DeusServiceAPIPurgeResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			serverID := req.URL.Query().Get(ServerIDHeader)
+			serverID := req.URL.Query().Get(infra.ServerIDHeader)
 
+			manager.Lock()
+			defer manager.Unlock()
 			if err := manager.Remove(cid, serverID, false); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)
 			}
 		})
 
-	// Set regional server address
-	serviceAPI.HandleFunc(infra.DeusServiceAPISetRegionResource,
+	// Stale Report invokes a check+remediation if the stated content is in a stale state
+	serviceAPI.HandleFunc(infra.DeusServiceAPIStaleReportResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			region := req.URL.Query().Get(RegionNameHeader)
-			serverID := req.URL.Query().Get(ServerIDHeader)
-
-			if err := servers.SetRegionAddress(region, serverID); err != nil {
-				resp.WriteHeader(http.StatusInternalServerError)
-				log.Println(err)
-			}
+			cid := req.URL.Query().Get(infra.ContentIDHeader)
+			go handleStaleReport(cid, checker, locIndex, manager)
 		})
 
-	// Remove regional server address
-	serviceAPI.HandleFunc(infra.DeusServiceAPIDelRegionResource,
+	// Decider update update the pull decider with a new request
+	serviceAPI.HandleFunc(infra.DeusServiceAPIPullDeciderResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			region := req.URL.Query().Get(RegionNameHeader)
-
-			if err := servers.RemoveRegionAddress(region); err != nil {
-				resp.WriteHeader(http.StatusInternalServerError)
-				log.Println(err)
-			}
-		})
-
-	// Update MaxMindDB File
-	serviceAPI.HandleFunc(infra.DeusServiceAPIUpdateGeoResource,
-		func(resp http.ResponseWriter, req *http.Request) {
-			fname := req.URL.Query().Get(MMDBFileNameHeader)
-
-			if err := geoFinder.LoadDatabase(fname); err != nil {
+			cid := req.URL.Query().Get(infra.ContentIDHeader)
+			serverID := req.URL.Query().Get(infra.ServerIDHeader)
+			if err := decider.NewRequest(cid, serverID); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)
 			}

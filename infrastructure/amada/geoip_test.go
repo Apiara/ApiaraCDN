@@ -1,4 +1,4 @@
-package deus
+package amada
 
 import (
 	"testing"

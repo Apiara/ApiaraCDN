@@ -22,16 +22,20 @@ const (
 )
 
 const (
-	DeusRouteAPIClientResource   = "/route/client"
-	DeusRouteAPIEndpointResource = "/route/endpoint"
+	AmadaRouteAPIClientResource   = "/route/client"
+	AmadaRouteAPIEndpointResource = "/route/endpoint"
 
-	DeusStaleReportAPIResource = "/report/stale"
+	AmadaServiceAPISetRegionResource = "/region/set"
+	AmadaServiceAPIDelRegionResource = "/region/del"
+	AmadaServiceAPIUpdateGeoResource = "/geomap/update"
+)
 
-	DeusServiceAPIPushResource      = "/content/push"
-	DeusServiceAPIPurgeResource     = "/content/purge"
-	DeusServiceAPISetRegionResource = "/region/set"
-	DeusServiceAPIDelRegionResource = "/region/del"
-	DeusServiceAPIUpdateGeoResource = "/geomap/update"
+const (
+	DeusServiceAPIPullDeciderResource = "/decider/update"
+
+	DeusServiceAPIStaleReportResource = "/content/stale"
+	DeusServiceAPIPushResource        = "/content/push"
+	DeusServiceAPIPurgeResource       = "/content/purge"
 )
 
 const (
