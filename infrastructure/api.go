@@ -11,6 +11,11 @@ const (
 	CyprusServiceAPIProcessResource = "/process"
 	CyprusServiceAPIStatusResource  = "/status"
 	CyprusServiceAPIDeleteResource  = "/delete"
+
+	CyprusStorageAPIKeyResource              = "/key"
+	CyprusStorageAPIDataResource             = "/crypdata"
+	CyprusStorageAPIPartialMetadataResource  = "/metadata/partial"
+	CyprusStorageAPICompleteMetadataResource = "/metadata/complete"
 )
 
 const (
