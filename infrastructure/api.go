@@ -46,10 +46,28 @@ const (
 const (
 	DominiqueReportAPIClientResource   = "/client/report"
 	DominiqueReportAPIEndpointResource = "/endpoint/report"
+
+	DominiqueDataAPIFetchResource = "/fetch"
 )
 
 const (
 	ReikoServiceAPIValidateResource = "/content/validate"
 	ReikoServiceAPIAddRuleResource  = "/rule/add"
 	ReikoServiceAPIDelRuleResource  = "/rule/del"
+)
+
+const (
+	// Node Reporting Resources
+	LeviReportAPIStaleResource           = "/report/stale"
+	LeviReportAPIEndpointSessionResource = "/report/endpoint"
+	LeviReportAPIClientSessionResource   = "/report/client"
+
+	// CDN Modification Resources
+	LeviContentAPIPullAddResource    = "/pull/add"
+	LeviContentAPIPullRemoveResource = "/pull/remove"
+	LeviContentAPIPushAddResource    = "/push/add"
+	LeviContentAPIPushRemoveResource = "/push/remove"
+
+	// Data Retrieval Resources
+	LeviDataAPIFetchResource = "/data/fetch"
 )
