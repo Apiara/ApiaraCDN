@@ -8,6 +8,7 @@ import (
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
+// StartReportAPI starts an API Gateway for endpoint/client reporting of sessions and stale data
 func StartReportAPI(listenAddr, staleAPI, reportAPI string) {
 	// Create internal resource URLs
 	staleReportURL, err := url.JoinPath(staleAPI, infra.DeusServiceAPIStaleReportResource)
@@ -34,6 +35,7 @@ func StartReportAPI(listenAddr, staleAPI, reportAPI string) {
 	log.Fatal(http.ListenAndServe(listenAddr, reportMux))
 }
 
+// StartContentAPI starts an API Gateway for changing content state/rules on the CDN
 func StartContentAPI(listenAddr, ruleAPI, contentAPI string) {
 	// Create internal resource paths
 	ruleAddURL, err := url.JoinPath(ruleAPI, infra.ReikoServiceAPIAddRuleResource)
@@ -65,6 +67,7 @@ func StartContentAPI(listenAddr, ruleAPI, contentAPI string) {
 	log.Fatal(http.ListenAndServe(listenAddr, contentMux))
 }
 
+// StartDataAccessAPI starts an API Gateway for accessing data access resources
 func StartDataAccessAPI(listenAddr, dataAPI string) {
 	// Create internal resource paths
 	fetchDataURL, err := url.JoinPath(dataAPI, infra.DominiqueDataAPIFetchResource)

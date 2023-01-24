@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// copy 'req' body and query parameters into a new request directed at 'url'
 func createReverseProxyRequest(req *http.Request, url string) (*http.Request, error) {
 	body := bytes.NewBuffer(nil)
 	if _, err := io.Copy(body, req.Body); err != nil {
@@ -22,6 +23,7 @@ func createReverseProxyRequest(req *http.Request, url string) (*http.Request, er
 	return copyRequest, nil
 }
 
+// create an http handler that forwards requests to 'internalURL' and returns result
 func createProxyHandler(client *http.Client, internalURL string) func(http.ResponseWriter, *http.Request) {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		// Create duplicate request for internal service
