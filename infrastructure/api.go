@@ -71,3 +71,32 @@ const (
 	// Data Retrieval Resources
 	LeviDataAPIFetchResource = "/data/fetch"
 )
+
+const (
+	// Region-to-Server mapping resources
+	StateAPIGetRegionResource    = "/region/get"
+	StateAPISetRegionResource    = "/region/set"
+	StateAPIDeleteRegionResource = "/region/delete"
+
+	// Content metadata resources
+	StateAPIGetFunctionalIDResource     = "/content/fid/get"
+	StateAPIGetContentIDResource        = "/content/cid/get"
+	StateAPIGetContentResourcesResource = "/content/resources/get"
+	StateAPIGetContentSizeResource      = "/content/size/get"
+	StateAPICreateContentEntryResource  = "/content/create"
+	StateAPIDeleteContentEntryResource  = "/content/delete"
+
+	// Edge network content state resources
+	StateAPIIsServerServingResource            = "/server/cid/exists"
+	StateAPIGetContentServerListResource       = "/content/cid/servers"
+	StateAPIIsContentActiveResource            = "/content/cid/active"
+	StateAPIWasContentPulledResource           = "/server/cid/pulled"
+	StateAPICreateContentLocationEntryResource = "/server/cid/create"
+	StateAPIDeleteContentLocationEntryResource = "/server/cid/delete"
+
+	// Dynamically pulled content rule resource
+	StateAPIGetContentPullRulesResource   = "/rules/all"
+	StateAPIDoesRuleExistResource         = "/rules/exists"
+	StateAPICreateContentPullRuleResource = "/rules/create"
+	StateAPIDeleteContentPullRuleResource = "/rules/delete"
+)

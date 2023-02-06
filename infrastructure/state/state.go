@@ -1,15 +1,20 @@
-package infrastructure
+package state
 
 import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/go-redis/redis/v8"
 )
 
-type MicroserviceConfiguration interface {
+/*
+MicroserviceState represents an object that can be used to
+read/write to the shared microservice state safely
+*/
+type MicroserviceState interface {
 	// Server region mapping
 	GetRegionAddress(location string) (string, error)
 	SetRegionAddress(location string, address string) error
@@ -65,14 +70,34 @@ const (
 	RedisContentPullRulesList = "rules:list"
 )
 
-// RedisMicroserviceConfiguration implements MicroserviceConfiguration using Redis
-type RedisMicroserviceConfiguration struct {
-	rdb *redis.Client
-	ctx context.Context
+// RedisMicroserviceState implements MicroserviceConfiguration using Redis
+type RedisMicroserviceState struct {
+	rdb   *redis.Client
+	ctx   context.Context
+	mutex *sync.RWMutex
+}
+
+/*
+NewRedisMicroserviceState creates a new instance of RedisMicroserviceState
+referencing the redis instance at addr
+*/
+func NewRedisMicroserviceState(addr string) *RedisMicroserviceState {
+	return &RedisMicroserviceState{
+		rdb: redis.NewClient(&redis.Options{
+			Addr:     addr,
+			Password: "",
+			DB:       0,
+		}),
+		ctx:   context.Background(),
+		mutex: &sync.RWMutex{},
+	}
 }
 
 // GetRegionAddress retrieves the server address for the 'location'
-func (r *RedisMicroserviceConfiguration) GetRegionAddress(location string) (string, error) {
+func (r *RedisMicroserviceState) GetRegionAddress(location string) (string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	serverKey := RedisRegionTable + location + RedisRegionServerAttr
 	server, err := r.rdb.Get(r.ctx, serverKey).Result()
 	if err == redis.Nil {
@@ -84,7 +109,10 @@ func (r *RedisMicroserviceConfiguration) GetRegionAddress(location string) (stri
 }
 
 // SetRegionAddress sets the server address that services a specific region
-func (r *RedisMicroserviceConfiguration) SetRegionAddress(location string, address string) error {
+func (r *RedisMicroserviceState) SetRegionAddress(location string, address string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	serverKey := RedisRegionTable + location + RedisRegionServerAttr
 	err := r.rdb.Set(r.ctx, serverKey, address, 0).Err()
 	if err != nil {
@@ -94,7 +122,10 @@ func (r *RedisMicroserviceConfiguration) SetRegionAddress(location string, addre
 }
 
 // RemoveRegionAddress removes the address associated with a region
-func (r *RedisMicroserviceConfiguration) RemoveRegionAddress(location string) error {
+func (r *RedisMicroserviceState) RemoveRegionAddress(location string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	serverKey := RedisRegionTable + location + RedisRegionServerAttr
 	if err := r.rdb.Del(r.ctx, serverKey).Err(); err != nil {
 		return fmt.Errorf("failed to remove region(%s) server entry: %w", location, err)
@@ -103,7 +134,10 @@ func (r *RedisMicroserviceConfiguration) RemoveRegionAddress(location string) er
 }
 
 // CreateContentEntry creates a metadata entry for a piece of content
-func (r *RedisMicroserviceConfiguration) CreateContentEntry(cid string, fid string, size int64, resources []string) error {
+func (r *RedisMicroserviceState) CreateContentEntry(cid string, fid string, size int64, resources []string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	// Create attribute list to write
 	safeCid := infra.URLToSafeName(cid)
 	fidKey := RedisContentMetadataTable + safeCid + RedisContentMetadataFIDAttr
@@ -139,7 +173,7 @@ func (r *RedisMicroserviceConfiguration) CreateContentEntry(cid string, fid stri
 	return nil
 }
 
-func (r *RedisMicroserviceConfiguration) propagateContentDeletion(pipe redis.Pipeliner, cid string) error {
+func (r *RedisMicroserviceState) propagateContentDeletion(pipe redis.Pipeliner, cid string) error {
 	locationKey := RedisContentMetadataTable + infra.URLToSafeName(cid) + RedisContentMetadataLocationAttr
 	servers, err := pipe.SMembers(r.ctx, locationKey).Result()
 	if err != nil {
@@ -155,7 +189,10 @@ func (r *RedisMicroserviceConfiguration) propagateContentDeletion(pipe redis.Pip
 }
 
 // DeleteContentEntry removes a metadata entry for a piece of content
-func (r *RedisMicroserviceConfiguration) DeleteContentEntry(cid string) error {
+func (r *RedisMicroserviceState) DeleteContentEntry(cid string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	// Create attribute list to delete
 	safeCid := infra.URLToSafeName(cid)
 	fidKey := RedisContentMetadataTable + safeCid + RedisContentMetadataFIDAttr
@@ -198,7 +235,10 @@ func (r *RedisMicroserviceConfiguration) DeleteContentEntry(cid string) error {
 }
 
 // GetContentFunctionalID retrieves the functional ID for a given content ID
-func (r *RedisMicroserviceConfiguration) GetContentFunctionalID(cid string) (string, error) {
+func (r *RedisMicroserviceState) GetContentFunctionalID(cid string) (string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	safeCid := infra.URLToSafeName(cid)
 	fidKey := RedisContentMetadataTable + safeCid + RedisContentMetadataFIDAttr
 
@@ -210,9 +250,11 @@ func (r *RedisMicroserviceConfiguration) GetContentFunctionalID(cid string) (str
 }
 
 // GetContentID retrieves a content ID given and functional ID
-func (r *RedisMicroserviceConfiguration) GetContentID(fid string) (string, error) {
-	cidKey := RedisContentMetadataReverseTable + fid + RedisContentMetadataReverseCIDAttr
+func (r *RedisMicroserviceState) GetContentID(fid string) (string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 
+	cidKey := RedisContentMetadataReverseTable + fid + RedisContentMetadataReverseCIDAttr
 	cid, err := r.rdb.Get(r.ctx, cidKey).Result()
 	if err != nil {
 		return "", fmt.Errorf("failed to get content from functional ID(%s): %w", fid, err)
@@ -221,7 +263,10 @@ func (r *RedisMicroserviceConfiguration) GetContentID(fid string) (string, error
 }
 
 // GetContentResources retrieves resource names associated with a content ID
-func (r *RedisMicroserviceConfiguration) GetContentResources(cid string) ([]string, error) {
+func (r *RedisMicroserviceState) GetContentResources(cid string) ([]string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	safeCid := infra.URLToSafeName(cid)
 	resourcesKey := RedisContentMetadataTable + safeCid + RedisContentMetadataResourcesAttr
 
@@ -235,7 +280,10 @@ func (r *RedisMicroserviceConfiguration) GetContentResources(cid string) ([]stri
 }
 
 // GetContentSize retrieves the content size associated with a content ID
-func (r *RedisMicroserviceConfiguration) GetContentSize(cid string) (int64, error) {
+func (r *RedisMicroserviceState) GetContentSize(cid string) (int64, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	safeCid := infra.URLToSafeName(cid)
 	sizeKey := RedisContentMetadataTable + safeCid + RedisContentMetadataSizeAttr
 
@@ -254,7 +302,10 @@ func (r *RedisMicroserviceConfiguration) GetContentSize(cid string) (int64, erro
 }
 
 // CreateContentLocationEntry updates the datastore to indicate a content ID is being served by a server
-func (r *RedisMicroserviceConfiguration) CreateContentLocationEntry(cid string, serverID string, pulled bool) error {
+func (r *RedisMicroserviceState) CreateContentLocationEntry(cid string, serverID string, pulled bool) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	// Create all key names in tables
 	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
 	locationKey := RedisContentMetadataTable + infra.URLToSafeName(cid) + RedisContentMetadataLocationAttr
@@ -281,7 +332,7 @@ func (r *RedisMicroserviceConfiguration) CreateContentLocationEntry(cid string, 
 	return nil
 }
 
-func (r *RedisMicroserviceConfiguration) txDeleteContentLocationEntry(pipe redis.Pipeliner, cid string, serverID string) error {
+func (r *RedisMicroserviceState) txDeleteContentLocationEntry(pipe redis.Pipeliner, cid string, serverID string) error {
 	// Create all key names in tables
 	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
 	locationKey := RedisContentMetadataTable + infra.URLToSafeName(cid) + RedisContentMetadataLocationAttr
@@ -303,7 +354,10 @@ func (r *RedisMicroserviceConfiguration) txDeleteContentLocationEntry(pipe redis
 }
 
 // DeleteContentLocationEntry updates the data store so a server is no longer serving a content ID
-func (r *RedisMicroserviceConfiguration) DeleteContentLocationEntry(cid string, serverID string) error {
+func (r *RedisMicroserviceState) DeleteContentLocationEntry(cid string, serverID string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	pipe := r.rdb.TxPipeline()
 	r.txDeleteContentLocationEntry(pipe, cid, serverID)
 	if _, err := pipe.Exec(r.ctx); err != nil {
@@ -313,7 +367,10 @@ func (r *RedisMicroserviceConfiguration) DeleteContentLocationEntry(cid string, 
 }
 
 // IsContentServedByServer returns whether or not a content ID is being served by a server
-func (r *RedisMicroserviceConfiguration) IsContentServedByServer(cid string, serverID string) (bool, error) {
+func (r *RedisMicroserviceState) IsContentServedByServer(cid string, serverID string) (bool, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
 	result, err := r.rdb.SIsMember(r.ctx, servingKey, cid).Result()
 	if err != nil {
@@ -323,7 +380,10 @@ func (r *RedisMicroserviceConfiguration) IsContentServedByServer(cid string, ser
 }
 
 // ContentServerList returns the list of servers currently serving a content ID
-func (r *RedisMicroserviceConfiguration) ContentServerList(cid string) ([]string, error) {
+func (r *RedisMicroserviceState) ContentServerList(cid string) ([]string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	locationKey := RedisContentMetadataTable + infra.URLToSafeName(cid) + RedisContentMetadataLocationAttr
 	servers, err := r.rdb.SMembers(r.ctx, locationKey).Result()
 	if err != nil {
@@ -333,7 +393,10 @@ func (r *RedisMicroserviceConfiguration) ContentServerList(cid string) ([]string
 }
 
 // IsContentBeingServed returns whether or not a piece of content is being served anywhere on the network
-func (r *RedisMicroserviceConfiguration) IsContentBeingServed(cid string) (bool, error) {
+func (r *RedisMicroserviceState) IsContentBeingServed(cid string) (bool, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	servers, err := r.ContentServerList(cid)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if content(%s) is being served: %w", cid, err)
@@ -342,7 +405,10 @@ func (r *RedisMicroserviceConfiguration) IsContentBeingServed(cid string) (bool,
 }
 
 // WasContentPulled returns whether or not a content was pulled by the network(as opposed to manually pushed to the network)
-func (r *RedisMicroserviceConfiguration) WasContentPulled(cid string, serverID string) (bool, error) {
+func (r *RedisMicroserviceState) WasContentPulled(cid string, serverID string) (bool, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	mechanismKey := RedisContentServeMechanismTable + infra.URLToSafeName(cid) +
 		infra.URLToSafeName(serverID) + RedisContentServeMechanismPulledAttr
 
@@ -360,7 +426,10 @@ func (r *RedisMicroserviceConfiguration) WasContentPulled(cid string, serverID s
 }
 
 // CreateContentPullRule stores a new rule that can be used to validate a piece of content elligibility for being pulled
-func (r *RedisMicroserviceConfiguration) CreateContentPullRule(rule string) error {
+func (r *RedisMicroserviceState) CreateContentPullRule(rule string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	if err := r.rdb.SAdd(r.ctx, RedisContentPullRulesList, rule).Err(); err != nil {
 		return fmt.Errorf("failed to add rule(%s) to rule list: %w", rule, err)
 	}
@@ -368,7 +437,10 @@ func (r *RedisMicroserviceConfiguration) CreateContentPullRule(rule string) erro
 }
 
 // DeleteContentPullRule removes a pull rule from the store
-func (r *RedisMicroserviceConfiguration) DeleteContentPullRule(rule string) error {
+func (r *RedisMicroserviceState) DeleteContentPullRule(rule string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	if err := r.rdb.SRem(r.ctx, RedisContentPullRulesList, rule).Err(); err != nil {
 		return fmt.Errorf("failed to remove rule(%s) from rule list: %w", rule, err)
 	}
@@ -376,7 +448,10 @@ func (r *RedisMicroserviceConfiguration) DeleteContentPullRule(rule string) erro
 }
 
 // GetContentPullRules returns all content pull rules currently in effect
-func (r *RedisMicroserviceConfiguration) GetContentPullRules() ([]string, error) {
+func (r *RedisMicroserviceState) GetContentPullRules() ([]string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	rules, err := r.rdb.SMembers(r.ctx, RedisContentPullRulesList).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve pull rules: %w", err)
@@ -385,7 +460,10 @@ func (r *RedisMicroserviceConfiguration) GetContentPullRules() ([]string, error)
 }
 
 // ContentPullRuleExists checks if a pull rule is currently in effect
-func (r *RedisMicroserviceConfiguration) ContentPullRuleExists(rule string) (bool, error) {
+func (r *RedisMicroserviceState) ContentPullRuleExists(rule string) (bool, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	result, err := r.rdb.SIsMember(r.ctx, RedisContentPullRulesList, rule).Result()
 	if err != nil {
 		return false, fmt.Errorf("failed to check if rule(%s) exists: %w", rule, err)
