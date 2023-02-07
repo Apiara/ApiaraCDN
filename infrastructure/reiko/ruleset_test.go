@@ -2,17 +2,17 @@ package reiko
 
 import (
 	"testing"
-	"time"
+
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 func TestPrefixContentRules(t *testing.T) {
-	RuleSetRefreshDuration = time.Duration(0)
-	redisTestAddress := ":7777"
-	ruleset := NewPrefixContentRules(redisTestAddress)
+	ruleStore := state.NewMockMicroserviceState()
+	ruleset := NewPrefixContentRules(ruleStore)
 
 	// Test empty match
 	cid := "testcid"
-	match, err := ruleset.MatchesRule(cid)
+	match, err := ruleset.DoesContentMatchRule(cid)
 	if err != nil {
 		t.Fatalf("Failed to run MatchesRule on non-existant cid: %v\n", err)
 	}
@@ -22,10 +22,10 @@ func TestPrefixContentRules(t *testing.T) {
 
 	// Test rule set and valid match
 	prefix := "test"
-	if err = ruleset.SetRule(prefix); err != nil {
+	if err = ruleset.CreateContentPullRule(prefix); err != nil {
 		t.Fatalf("Failed to set rule: %v\n", err)
 	}
-	match, err = ruleset.MatchesRule(cid)
+	match, err = ruleset.DoesContentMatchRule(cid)
 	if err != nil {
 		t.Fatalf("Failed to run MatchesRule after rule set: %v\n", err)
 	}
@@ -34,15 +34,15 @@ func TestPrefixContentRules(t *testing.T) {
 	}
 
 	// Test rule deletion an invalid match
-	if err = ruleset.DelRule(prefix); err != nil {
+	if err = ruleset.DeleteContentPullRule(prefix); err != nil {
 		t.Fatalf("Failed to delete rule: %v\n", err)
 	}
 
 	badPrefix := "temp"
-	if err = ruleset.SetRule(badPrefix); err != nil {
+	if err = ruleset.CreateContentPullRule(badPrefix); err != nil {
 		t.Fatalf("Failed to set rule: %v\n", err)
 	}
-	match, err = ruleset.MatchesRule(cid)
+	match, err = ruleset.DoesContentMatchRule(cid)
 	if err != nil {
 		t.Fatalf("Failed to run MatchesRule after rule set: %v\n", err)
 	}
@@ -51,7 +51,7 @@ func TestPrefixContentRules(t *testing.T) {
 	}
 
 	// Cleanup
-	if ruleset.DelRule(badPrefix); err != nil {
+	if ruleset.DeleteContentPullRule(badPrefix); err != nil {
 		t.Fatalf("Failed to delete rule: %v\n", err)
 	}
 }

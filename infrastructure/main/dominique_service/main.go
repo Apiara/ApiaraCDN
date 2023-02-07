@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/Apiara/ApiaraCDN/infrastructure/dominique"
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 /*
@@ -55,8 +55,11 @@ func main() {
 	listenAddr := ":" + strconv.Itoa(conf.Port)
 
 	// Create resources
-	dataIndex := infra.NewRedisDataIndex(conf.RedisDBAddress)
-	timeseries := dominique.NewInfluxTimeseriesDB(conf.InfluxDBAddress, conf.InfluxDBToken, dataIndex)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisDBAddress)
+	if err != nil {
+		panic(err)
+	}
+	timeseries := dominique.NewInfluxTimeseriesDB(conf.InfluxDBAddress, conf.InfluxDBToken, microserviceState)
 	matcher := dominique.NewTimedSessionProcessor(conf.ReportRetrievalTimeout, timeseries)
 	remediationQueue, err := dominique.NewPostgresRemediationQueue(conf.PostgresHost, conf.PostgresPort,
 		conf.PostgresUsername, conf.PostgresPassword, conf.PostgresDatabase)

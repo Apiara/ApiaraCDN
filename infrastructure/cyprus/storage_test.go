@@ -4,12 +4,11 @@ import (
 	"os"
 	"testing"
 
-	infra "github.com/Apiara/ApiaraCDN/infrastructure"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 func TestFilesystemStorageManager(t *testing.T) {
 	// Test Locations
-	redisAddr := ":7777"
 	testFile, err := createTestIngestFile("./test_resources/hls/index_1_1.ts")
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
@@ -23,7 +22,7 @@ func TestFilesystemStorageManager(t *testing.T) {
 	}()
 
 	// Test
-	state := infra.NewRedisDataIndex(redisAddr)
+	state := state.NewMockMicroserviceState()
 	storage, err := NewFilesystemStorageManager(storageDir, state)
 	if err != nil {
 		t.Fatalf("Failed to create redis storage manager: %v", err)

@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
-	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/Apiara/ApiaraCDN/infrastructure/cyprus"
 	"github.com/Apiara/ApiaraCDN/infrastructure/deus"
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 /*
@@ -58,20 +58,22 @@ func main() {
 	serviceListenAddr := ":" + strconv.Itoa(conf.ServiceListenPort)
 
 	// Create resources
-	dataIndex := infra.NewRedisDataIndex(conf.RedisAddress)
-	contentState := deus.NewRedisContentLocationIndex(conf.RedisAddress)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisAddress)
+	if err != nil {
+		panic(err)
+	}
 	validator, err := deus.NewContentValidatorClient(conf.ValidateAPIAddress)
 	if err != nil {
 		panic(err)
 	}
 
-	manager, err := deus.NewMasterContentManager(contentState, dataIndex,
+	manager, err := deus.NewMasterContentManager(microserviceState, microserviceState,
 		conf.ProcessAPIAddress, conf.CoordinateAPIAddress)
 	if err != nil {
 		panic(err)
 	}
 
-	pullDecider := deus.NewThresholdPullDecider(validator, manager, contentState,
+	pullDecider := deus.NewThresholdPullDecider(validator, manager, microserviceState,
 		conf.PullRequestThreshold, conf.PullFrequency)
 
 	// Create preprocessor
@@ -85,8 +87,8 @@ func main() {
 	preprocessor := cyprus.NewCompoundPreprocessor(preprocessorMap)
 
 	// Create stale data checker
-	staleChecker, err := deus.NewChecksumDataValidator(conf.InternalDataAddr, preprocessor, dataIndex)
+	staleChecker, err := deus.NewChecksumDataValidator(conf.InternalDataAddr, preprocessor, microserviceState)
 
 	// Start APIs
-	deus.StartServiceAPI(serviceListenAddr, staleChecker, contentState, pullDecider, manager)
+	deus.StartServiceAPI(serviceListenAddr, staleChecker, microserviceState, pullDecider, manager)
 }

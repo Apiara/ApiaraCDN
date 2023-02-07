@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	infra "github.com/Apiara/ApiaraCDN/infrastructure"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxAPI "github.com/influxdata/influxdb-client-go/v2/api"
 )
@@ -127,14 +127,14 @@ type InfluxTimeseriesDB struct {
 	sessionsWriter influxAPI.WriteAPIBlocking
 	reportsWriter  influxAPI.WriteAPIBlocking
 	dbReader       influxAPI.QueryAPI
-	finder         infra.DataIndexReader
+	finder         state.ContentMetadataStateReader
 }
 
 /*
 NewInfluxTimeseriesDB creates a new instance of InfluxTimeseriesDB pointing
 at the provided dbURL influx database authenticated with dbToken
 */
-func NewInfluxTimeseriesDB(dbURL, dbToken string, finder infra.DataIndexReader) *InfluxTimeseriesDB {
+func NewInfluxTimeseriesDB(dbURL, dbToken string, finder state.ContentMetadataStateReader) *InfluxTimeseriesDB {
 	client := influxdb2.NewClient(dbURL, dbToken)
 
 	return &InfluxTimeseriesDB{

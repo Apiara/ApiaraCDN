@@ -10,6 +10,7 @@ import (
 	"time"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 var (
@@ -51,7 +52,7 @@ func (m *mockContentManager) Unlock() { m.mutex.Unlock() }
 type MasterContentManager struct {
 	mutex                *sync.Mutex
 	serveState           ContentLocationIndex
-	dataIndex            infra.DataIndex
+	dataIndex            state.ContentMetadataState
 	httpClient           *http.Client
 	processDataAPIAddr   string
 	processStatusAPIAddr string
@@ -64,7 +65,7 @@ type MasterContentManager struct {
 NewMasterContentManager returns a new instances of MasterContentManager
 that uses the processAPI and coordinateAPI to delegate tasks
 */
-func NewMasterContentManager(serverState ContentLocationIndex, index infra.DataIndex, processAPI string,
+func NewMasterContentManager(serverState ContentLocationIndex, index state.ContentMetadataState, processAPI string,
 	coordinateAPI string) (*MasterContentManager, error) {
 	// Prepare API resources
 	processDataAPIAddr, err := url.JoinPath(processAPI, infra.CyprusServiceAPIProcessResource)
@@ -197,7 +198,7 @@ func (m *MasterContentManager) publishContent(serverAddr string, functionlID str
 }
 
 func (m *MasterContentManager) stopServing(serverAddr string, cid string) error {
-	fid, err := m.dataIndex.GetFunctionalID(cid)
+	fid, err := m.dataIndex.GetContentFunctionalID(cid)
 	if err != nil {
 		return err
 	}
@@ -219,7 +220,7 @@ func (m *MasterContentManager) stopServing(serverAddr string, cid string) error 
 }
 
 func (m *MasterContentManager) unpublishContent(cid string) error {
-	fid, err := m.dataIndex.GetFunctionalID(cid)
+	fid, err := m.dataIndex.GetContentFunctionalID(cid)
 	if err != nil {
 		return err
 	}
@@ -237,7 +238,7 @@ func (m *MasterContentManager) unpublishContent(cid string) error {
 // Serve attempts serve 'cid' on the network
 func (m *MasterContentManager) Serve(cid string, serverAddr string, dynamic bool) error {
 	// Check if content has been processed yet
-	processed, err := m.serveState.IsBeingServed(cid)
+	processed, err := m.serveState.IsContentBeingServed(cid)
 	if err != nil {
 		return err
 	}
@@ -251,11 +252,11 @@ func (m *MasterContentManager) Serve(cid string, serverAddr string, dynamic bool
 			return err
 		}
 	} else {
-		functionalID, err = m.dataIndex.GetFunctionalID(cid)
+		functionalID, err = m.dataIndex.GetContentFunctionalID(cid)
 		if err != nil {
 			return err
 		}
-		size, err = m.dataIndex.GetSize(cid)
+		size, err = m.dataIndex.GetContentSize(cid)
 		if err != nil {
 			return err
 		}
@@ -267,7 +268,7 @@ func (m *MasterContentManager) Serve(cid string, serverAddr string, dynamic bool
 	}
 
 	// Update global state
-	return m.serveState.Set(cid, serverAddr, dynamic)
+	return m.serveState.CreateContentLocationEntry(cid, serverAddr, dynamic)
 }
 
 /*
@@ -278,7 +279,7 @@ that was manually pushed
 */
 func (m *MasterContentManager) Remove(cid string, serverAddr string, dynamic bool) error {
 	// Update state
-	dynamicallySet, err := m.serveState.WasDynamicallySet(cid, serverAddr)
+	dynamicallySet, err := m.serveState.WasContentPulled(cid, serverAddr)
 	if err != nil {
 		return err
 	}
@@ -286,7 +287,7 @@ func (m *MasterContentManager) Remove(cid string, serverAddr string, dynamic boo
 	if dynamic && !dynamicallySet {
 		return fmt.Errorf("Cannot dynamically remove %s from %s since it was manually pushed", cid, serverAddr)
 	}
-	if err := m.serveState.Remove(cid, serverAddr); err != nil {
+	if err := m.serveState.DeleteContentLocationEntry(cid, serverAddr); err != nil {
 		return err
 	}
 
@@ -296,7 +297,7 @@ func (m *MasterContentManager) Remove(cid string, serverAddr string, dynamic boo
 	}
 
 	// Delete processed data if no longer being served anywhere on the network
-	inUse, err := m.serveState.IsBeingServed(cid)
+	inUse, err := m.serveState.IsContentBeingServed(cid)
 	if err != nil {
 		return err
 	}

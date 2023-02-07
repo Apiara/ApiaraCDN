@@ -6,6 +6,7 @@ import (
 
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
 	"github.com/Apiara/ApiaraCDN/infrastructure/reiko"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 /*
@@ -30,6 +31,10 @@ func main() {
 	}
 	listenAddr := ":" + strconv.Itoa(conf.Port)
 
-	ruleManager := reiko.NewPrefixContentRules(conf.RedisDBAddress)
-	reiko.StartServiceAPI(listenAddr, ruleManager)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisDBAddress)
+	if err != nil {
+		panic(err)
+	}
+	ruleset := reiko.NewPrefixContentRules(microserviceState)
+	reiko.StartServiceAPI(listenAddr, ruleset)
 }

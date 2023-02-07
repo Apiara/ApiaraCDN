@@ -23,7 +23,7 @@ func matchReqToRegionalServer(req *http.Request, geoFinder IPGeoFinder,
 		return "", err
 	}
 
-	return serverIndex.GetAddress(loc)
+	return serverIndex.GetRegionAddress(loc)
 }
 
 func sendNewRequestUpdate(addr string, cid string, serverAddr string) error {
@@ -77,7 +77,7 @@ func StartDeviceRoutingAPI(listenAddr string, geoFinder IPGeoFinder,
 			}
 
 			// Check if requested content is being served and respond appropriately
-			serving, err := dataState.IsServedByServer(cid, serverAddr)
+			serving, err := dataState.IsContentServedByServer(cid, serverAddr)
 			if err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)

@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/Apiara/ApiaraCDN/infrastructure/amada"
-	"github.com/Apiara/ApiaraCDN/infrastructure/deus"
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 /*
@@ -71,8 +71,10 @@ func main() {
 	routeListenAddr := ":" + strconv.Itoa(conf.RouteListenPort)
 
 	// Create resources
-	contentState := deus.NewRedisContentLocationIndex(conf.RedisAddress)
-	serverIndex := amada.NewRedisGeoServerIndex(conf.RedisAddress)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisAddress)
+	if err != nil {
+		panic(err)
+	}
 
 	geoFinder, err := amada.NewMaxMindIPGeoFinder(conf.MaxMindGeoFile, regions)
 	if err != nil {
@@ -80,7 +82,7 @@ func main() {
 	}
 
 	// Start APIs
-	go amada.StartServiceAPI(overrideListenAddr, serverIndex, geoFinder)
-	amada.StartDeviceRoutingAPI(routeListenAddr, geoFinder, contentState,
-		serverIndex, conf.PullDeciderAPIAddress)
+	go amada.StartServiceAPI(overrideListenAddr, microserviceState, geoFinder)
+	amada.StartDeviceRoutingAPI(routeListenAddr, geoFinder, microserviceState,
+		microserviceState, conf.PullDeciderAPIAddress)
 }

@@ -62,7 +62,7 @@ func NewThresholdPullDecider(validator ContentValidator, contentManager ContentM
 				cid, serverAddr := unpackServePairKey(key)
 				// Add data if above threshold and not being served
 
-				serving, err := dataState.IsServedByServer(cid, serverAddr)
+				serving, err := dataState.IsContentServedByServer(cid, serverAddr)
 				if err != nil {
 					log.Println(err)
 					continue

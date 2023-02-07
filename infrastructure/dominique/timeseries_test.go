@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	infra "github.com/Apiara/ApiaraCDN/infrastructure"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,8 +12,8 @@ func TestInfluxDBTimeseriesDBReader(t *testing.T) {
 	// Initialize database and resources
 	dbURL := "http://localhost:8086"
 	dbToken := "9mB5ncSMlx-b_rLao1DMQMeVoMRYn9jIN5fBnBTwS54V9qpgxjnTo2aYLCLALHLq6fOO8tAHmbT462bipVJj-Q=="
-	finder := infra.NewMockDataIndex()
-	finder.Create("read_cid", "read_fid", 2048, []string{})
+	finder := state.NewMockMicroserviceState()
+	finder.CreateContentEntry("read_cid", "read_fid", 2048, []string{})
 
 	timeseries := NewInfluxTimeseriesDB(dbURL, dbToken, finder)
 
@@ -92,8 +92,8 @@ func TestInfluxDBTimeseriesDBReader(t *testing.T) {
 func TestInfluxTimeseriesDBWriter(t *testing.T) {
 	dbURL := "http://localhost:8086"
 	dbToken := "9mB5ncSMlx-b_rLao1DMQMeVoMRYn9jIN5fBnBTwS54V9qpgxjnTo2aYLCLALHLq6fOO8tAHmbT462bipVJj-Q=="
-	finder := infra.NewMockDataIndex()
-	finder.Create("url_fid", "fid", 1024, []string{})
+	finder := state.NewMockMicroserviceState()
+	finder.CreateContentEntry("url_fid", "fid", 1024, []string{})
 
 	timeseries := NewInfluxTimeseriesDB(dbURL, dbToken, finder)
 

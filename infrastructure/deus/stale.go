@@ -11,6 +11,7 @@ import (
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/Apiara/ApiaraCDN/infrastructure/cyprus"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 /*
@@ -28,7 +29,7 @@ for the provided content id matches the internal checksum for the content
 type ChecksumDataValidator struct {
 	accessor          internalDataAccessor
 	mediaPreprocessor cyprus.DataPreprocessor
-	dataIndex         infra.DataIndexReader
+	dataIndex         state.ContentMetadataStateReader
 	contentBaseURL    string
 }
 
@@ -38,7 +39,7 @@ preprocessor and dataIndex, retrieving internal copies of data from the
 internalDataAddr base URL
 */
 func NewChecksumDataValidator(internalDataAddr string, preprocessor cyprus.DataPreprocessor,
-	dataIndex infra.DataIndexReader) (*ChecksumDataValidator, error) {
+	dataIndex state.ContentMetadataStateReader) (*ChecksumDataValidator, error) {
 
 	contentBaseURL, err := url.JoinPath(internalDataAddr, infra.CryptDataStorageDir)
 	if err != nil {
@@ -68,7 +69,7 @@ func NewChecksumDataValidator(internalDataAddr string, preprocessor cyprus.DataP
 
 func (c *ChecksumDataValidator) getRawMediaInternalChecksum(cid string) ([]byte, error) {
 	// Calculate content location
-	fid, err := c.dataIndex.GetFunctionalID(cid)
+	fid, err := c.dataIndex.GetContentFunctionalID(cid)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve %s functional id for stale detection: %w", cid, err)
 	}

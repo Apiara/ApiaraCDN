@@ -22,7 +22,7 @@ func handleStaleReport(cid string, checker DataValidator,
 
 	// Find all affected servers
 	dynamic := make(map[string]bool)
-	serverList, err := locIndex.ServerList(cid)
+	serverList, err := locIndex.ContentServerList(cid)
 	if err != nil {
 		log.Printf("Failed to lookup list of servers serving %s: %v\n", cid, err)
 		return
@@ -32,7 +32,7 @@ func handleStaleReport(cid string, checker DataValidator,
 	manager.Lock()
 	defer manager.Unlock()
 	for _, serverID := range serverList {
-		dynamic[serverID], err = locIndex.WasDynamicallySet(cid, serverID)
+		dynamic[serverID], err = locIndex.WasContentPulled(cid, serverID)
 		if err != nil {
 			log.Printf("Failed to lookup if %s was dynamically set to server %s: %v\n", cid, serverID, err)
 		} else if err = manager.Remove(cid, serverID, dynamic[serverID]); err != nil {
@@ -43,7 +43,7 @@ func handleStaleReport(cid string, checker DataValidator,
 	// Re-process removed content
 	for _, serverID := range serverList {
 		if err = manager.Serve(cid, serverID, dynamic[serverID]); err != nil {
-			locIndex.Remove(cid, serverID)
+			locIndex.DeleteContentLocationEntry(cid, serverID)
 			log.Printf("Failed to re-add %s to server %s: %v\n", cid, serverID, err)
 		}
 	}

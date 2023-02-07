@@ -10,6 +10,27 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+type ContentMetadataStateReader interface {
+	GetContentFunctionalID(cid string) (string, error)
+	GetContentID(fid string) (string, error)
+	GetContentResources(cid string) ([]string, error)
+	GetContentSize(cid string) (int64, error)
+}
+
+type ContentMetadataStateWriter interface {
+	CreateContentEntry(cid string, fid string, size int64, resources []string) error
+	DeleteContentEntry(cid string) error
+}
+
+/*
+ContentMetadataState represents and object that can read/write information
+about content being served by the network
+*/
+type ContentMetadataState interface {
+	ContentMetadataStateReader
+	ContentMetadataStateWriter
+}
+
 /*
 MicroserviceState represents an object that can be used to
 read/write to the shared microservice state safely
@@ -21,12 +42,7 @@ type MicroserviceState interface {
 	RemoveRegionAddress(location string) error
 
 	// Content information
-	GetContentFunctionalID(cid string) (string, error)
-	GetContentID(fid string) (string, error)
-	GetContentResources(cid string) ([]string, error)
-	GetContentSize(cid string) (int64, error)
-	CreateContentEntry(cid string, fid string, size int64, resources []string) error
-	DeleteContentEntry(cid string) error
+	ContentMetadataState
 
 	// Content location information
 	IsContentServedByServer(cid string, serverID string) (bool, error)
@@ -147,11 +163,11 @@ func (r *RedisMicroserviceState) CreateContentEntry(cid string, fid string, size
 
 	// Write forward attributes
 	pipe := r.rdb.TxPipeline()
-	errMsg := "Failed to create content entry for %s: :%w"
+	errMsg := "Failed to create content entry for %s: %w"
 	if err := pipe.Set(r.ctx, fidKey, fid, 0).Err(); err != nil {
 		return fmt.Errorf(errMsg, cid, err)
 	}
-	if err := pipe.Set(r.ctx, sizeKey, strconv.FormatInt(size, 10), 0); err != nil {
+	if err := pipe.Set(r.ctx, sizeKey, strconv.FormatInt(size, 10), 0).Err(); err != nil {
 		return fmt.Errorf(errMsg, cid, err)
 	}
 	for _, resource := range resources {

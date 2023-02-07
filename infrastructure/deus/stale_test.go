@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/Apiara/ApiaraCDN/infrastructure/cyprus"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,8 +28,8 @@ func TestChecksumDataValidator(t *testing.T) {
 			},
 		},
 	}
-	dataIndex := infra.NewMockDataIndex()
-	dataIndex.Create(testCid, testFid, 22, []string{})
+	dataIndex := state.NewMockMicroserviceState()
+	dataIndex.CreateContentEntry(testCid, testFid, 22, []string{})
 
 	validator := &ChecksumDataValidator{
 		accessor: &aesInternalDataAccessor{

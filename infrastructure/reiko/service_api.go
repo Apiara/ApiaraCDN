@@ -23,7 +23,7 @@ func StartServiceAPI(listenAddr string, ruleset ContentRules) {
 		func(resp http.ResponseWriter, req *http.Request) {
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
 
-			matchFound, err := ruleset.MatchesRule(cid)
+			matchFound, err := ruleset.DoesContentMatchRule(cid)
 			if err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)
@@ -41,7 +41,7 @@ func StartServiceAPI(listenAddr string, ruleset ContentRules) {
 		func(resp http.ResponseWriter, req *http.Request) {
 			rule := req.URL.Query().Get(ContentRuleHeader)
 
-			if err := ruleset.SetRule(rule); err != nil {
+			if err := ruleset.CreateContentPullRule(rule); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)
 			}
@@ -52,7 +52,7 @@ func StartServiceAPI(listenAddr string, ruleset ContentRules) {
 		func(resp http.ResponseWriter, req *http.Request) {
 			rule := req.URL.Query().Get(ContentRuleHeader)
 
-			if err := ruleset.DelRule(rule); err != nil {
+			if err := ruleset.DeleteContentPullRule(rule); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)
 			}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 func TestMasterContentManager(t *testing.T) {
@@ -33,9 +34,8 @@ func TestMasterContentManager(t *testing.T) {
 
 	// Create resources
 	serverAddr := mockAPIAddr
-	state := &mockContentLocationIndex{make(map[string]struct{})}
-	dataIndex := infra.NewMockDataIndex()
-	manager, err := NewMasterContentManager(state, dataIndex, mockAPIAddr, mockAPIAddr)
+	microserviceState := state.NewMockMicroserviceState()
+	manager, err := NewMasterContentManager(microserviceState, microserviceState, mockAPIAddr, mockAPIAddr)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -45,19 +45,19 @@ func TestMasterContentManager(t *testing.T) {
 		t.Fatalf("Failed to start serving data: %v", err)
 	}
 
-	if serving, _ := state.IsServedByServer(cid, serverAddr); !serving {
+	if serving, _ := microserviceState.IsContentServedByServer(cid, serverAddr); !serving {
 		t.Fatalf("Failed propogate serve success to content state")
 	}
 
 	// Update data index as it is supposed to be updated by process
-	dataIndex.Create(cid, functionalID, 1024, []string{})
+	microserviceState.CreateContentEntry(cid, functionalID, 1024, []string{})
 
 	// Do Remove test
 	if err := manager.Remove(cid, serverAddr, true); err != nil {
 		t.Fatalf("Failed to stop serving data: %v", err)
 	}
 
-	if serving, _ := state.IsServedByServer(cid, serverAddr); serving {
+	if serving, _ := microserviceState.IsContentServedByServer(cid, serverAddr); serving {
 		t.Fatalf("Failed propogate serve removal to content state")
 	}
 }

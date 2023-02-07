@@ -7,8 +7,16 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
+
+	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
+/*
+MicroserviceStateAPIClient implements MicroserviceState by communicating
+to the Microservice State Client and having it perform state operations
+on behalf of the client
+*/
 type MicroserviceStateAPIClient struct {
 	client *http.Client
 
@@ -33,8 +41,43 @@ type MicroserviceStateAPIClient struct {
 	deletePullRule             string
 }
 
-func NewMicroserviceStateAPIClient(stateServiceAPI string) {
+/*
+NewMicroserviceStateAPIClient creates a new instance of MicroserviceStateAPIClient
+referencing the Microservice State Service hosted at address stateServiceAPI
+*/
+func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAPIClient, error) {
+	// Ensure data types sent over the wire are registered for gob encoding
 	gob.Register(metadataCreate{})
+
+	// Create resource paths
+	apiResources := []string{
+		infra.StateAPIGetRegionResource, infra.StateAPISetRegionResource, infra.StateAPIDeleteRegionResource,
+		infra.StateAPIGetFunctionalIDResource, infra.StateAPIGetContentIDResource, infra.StateAPIGetContentResourcesResource,
+		infra.StateAPIGetContentSizeResource, infra.StateAPICreateContentEntryResource, infra.StateAPIDeleteContentEntryResource,
+		infra.StateAPIIsServerServingResource, infra.StateAPIGetContentServerListResource, infra.StateAPIIsContentActiveResource,
+		infra.StateAPIWasContentPulledResource, infra.StateAPICreateContentLocationEntryResource, infra.StateAPIDeleteContentLocationEntryResource,
+		infra.StateAPIGetContentPullRulesResource, infra.StateAPIDoesRuleExistResource, infra.StateAPICreateContentPullRuleResource,
+		infra.StateAPIDeleteContentPullRuleResource,
+	}
+
+	var err error
+	apiEndpoints := make([]string, len(apiResources))
+	for i, resource := range apiResources {
+		apiEndpoints[i], err = url.JoinPath(stateServiceAPI, resource)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create microservice API client with address(%s): %w", stateServiceAPI, err)
+		}
+	}
+
+	// Create and return client
+	return &MicroserviceStateAPIClient{
+		http.DefaultClient,
+		apiEndpoints[0], apiEndpoints[1], apiEndpoints[2], apiEndpoints[3],
+		apiEndpoints[4], apiEndpoints[5], apiEndpoints[6], apiEndpoints[7],
+		apiEndpoints[8], apiEndpoints[9], apiEndpoints[10], apiEndpoints[11],
+		apiEndpoints[12], apiEndpoints[13], apiEndpoints[14], apiEndpoints[15],
+		apiEndpoints[16], apiEndpoints[17], apiEndpoints[18],
+	}, nil
 }
 
 func makeHTTPRequest(url string, query url.Values, body io.Reader, client *http.Client, result interface{}) error {
@@ -223,10 +266,11 @@ func (c *MicroserviceStateAPIClient) WasContentPulled(cid string, server string)
 	return result, nil
 }
 
-func (c *MicroserviceStateAPIClient) CreateContentLocationEntry(cid string, server string) error {
+func (c *MicroserviceStateAPIClient) CreateContentLocationEntry(cid string, server string, pulled bool) error {
 	query := url.Values{}
 	query.Add(ContentIDHeader, cid)
 	query.Add(ServerHeader, server)
+	query.Add(ContentWasPulledHeader, strconv.FormatBool(pulled))
 
 	if err := makeHTTPRequest(c.createContentLocationEntry, query, nil, c.client, nil); err != nil {
 		return fmt.Errorf("failed to create content(%s) to server(%s) location entry: %w", cid, server, err)

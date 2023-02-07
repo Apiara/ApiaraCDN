@@ -9,6 +9,7 @@ import (
 	"path"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 const (
@@ -30,7 +31,7 @@ FilesystemStorageManager implements StorageManager and uses filesystem
 directories to store the processed data
 */
 type FilesystemStorageManager struct {
-	state          infra.DataIndex
+	contentState   state.ContentMetadataState
 	keyDir         string
 	dataDir        string
 	partialMapDir  string
@@ -41,7 +42,7 @@ type FilesystemStorageManager struct {
 NewFilesystemStorageManager creates a new FilesystemStorageManager where all
 data is stored in subdirectories of storageDir and indexed via state
 */
-func NewFilesystemStorageManager(storageDir string, state infra.DataIndex) (*FilesystemStorageManager, error) {
+func NewFilesystemStorageManager(storageDir string, contentState state.ContentMetadataState) (*FilesystemStorageManager, error) {
 	dirs := []string{
 		path.Join(storageDir, infra.AESKeyStorageDir),
 		path.Join(storageDir, infra.CryptDataStorageDir),
@@ -55,7 +56,7 @@ func NewFilesystemStorageManager(storageDir string, state infra.DataIndex) (*Fil
 	}
 
 	return &FilesystemStorageManager{
-		state:          state,
+		contentState:   contentState,
 		keyDir:         dirs[0],
 		dataDir:        dirs[1],
 		partialMapDir:  dirs[2],
@@ -201,7 +202,7 @@ func (s *FilesystemStorageManager) Publish(digest MediaDigest) error {
 	}
 
 	// Publish state update to state index
-	if err = s.state.Create(url, fid, digest.ByteSize, resources); err != nil {
+	if err = s.contentState.CreateContentEntry(url, fid, digest.ByteSize, resources); err != nil {
 		return err
 	}
 	return nil
@@ -213,12 +214,12 @@ as well as deletes all associated indexed information
 */
 func (s *FilesystemStorageManager) purge(url string) error {
 	// Purge resource files
-	resources, err := s.state.GetResources(url)
+	resources, err := s.contentState.GetContentResources(url)
 	if err != nil {
 		return fmt.Errorf("Failed to read resource list for URL %s: %w", url, err)
 	}
 	s.purgeFiles(resources)
-	return s.state.Delete(url)
+	return s.contentState.DeleteContentEntry(url)
 }
 
 // PurgeByURL allows purging by URL key
@@ -229,7 +230,7 @@ func (s *FilesystemStorageManager) PurgeByURL(url string) error {
 // PurgeByFunctionalID allows purging by functional ID
 func (s *FilesystemStorageManager) PurgeByFunctionalID(fid string) error {
 	// Get URL
-	url, err := s.state.GetContentID(fid)
+	url, err := s.contentState.GetContentID(fid)
 	if err != nil {
 		return err
 	}
