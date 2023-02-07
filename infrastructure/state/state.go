@@ -163,7 +163,7 @@ func (r *RedisMicroserviceState) CreateContentEntry(cid string, fid string, size
 
 	// Write forward attributes
 	pipe := r.rdb.TxPipeline()
-	errMsg := "Failed to create content entry for %s: %w"
+	errMsg := "failed to create content entry for %s: %w"
 	if err := pipe.Set(r.ctx, fidKey, fid, 0).Err(); err != nil {
 		return fmt.Errorf(errMsg, cid, err)
 	}
@@ -216,7 +216,7 @@ func (r *RedisMicroserviceState) DeleteContentEntry(cid string) error {
 	resourcesKey := RedisContentMetadataTable + safeCid + RedisContentMetadataResourcesAttr
 
 	// Read fid and create reverse cid lookup attribute
-	errMsg := "Failed to delete content entry for %s: :%w"
+	errMsg := "failed to delete content entry for %s: %w"
 	fid, err := r.rdb.Get(r.ctx, fidKey).Result()
 	if err != nil {
 		return fmt.Errorf(errMsg, cid, err)

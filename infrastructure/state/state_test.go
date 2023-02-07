@@ -2,13 +2,24 @@ package state
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRedisMicroserviceState(t *testing.T) {
+	// Setup primary service
 	redisAddr := ":7777"
-	microserviceState := NewRedisMicroserviceState(redisAddr)
+	primaryState := NewRedisMicroserviceState(redisAddr)
+	port := ":12345"
+	go StartDataService(port, primaryState)
+	time.Sleep(time.Second)
+
+	// Create relay client
+	microserviceState, err := NewMicroserviceStateAPIClient("http://127.0.0.1" + port)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Test region mappings
 	region := "Oregon"
