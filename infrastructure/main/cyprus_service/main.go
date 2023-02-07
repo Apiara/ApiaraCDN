@@ -16,19 +16,19 @@ media_formats = [ ".mp4", ".mov", ...]
 processing_dir = "../workingdir/"
 publishing_dir = "../publish/"
 aes_key_size = 16 | 24 | 32
-redis_address = addr
+state_address = addr
 processing_listen_port = int
 storage_listen_port = int
 */
 
 type cyprusConfig struct {
-	MediaFormats      []string `toml:"media_formats"`
-	ProcessingDir     string   `toml:"processing_dir"`
-	PublishingDir     string   `toml:"publishing_dir"`
-	AESKeySize        int      `toml:"aes_key_size"`
-	RedisDBAddress    string   `toml:"redis_address"`
-	ProcessingAPIPort int      `toml:"processing_listen_port"`
-	StorageAPIPort    int      `toml:"storage_listen_port"`
+	MediaFormats        []string `toml:"media_formats"`
+	ProcessingDir       string   `toml:"processing_dir"`
+	PublishingDir       string   `toml:"publishing_dir"`
+	AESKeySize          int      `toml:"aes_key_size"`
+	StateServiceAddress string   `toml:"state_address"`
+	ProcessingAPIPort   int      `toml:"processing_listen_port"`
+	StorageAPIPort      int      `toml:"storage_listen_port"`
 }
 
 func main() {
@@ -59,7 +59,7 @@ func main() {
 	}
 
 	// Create storage manager
-	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisDBAddress)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.StateServiceAddress)
 	if err != nil {
 		panic(err)
 	}

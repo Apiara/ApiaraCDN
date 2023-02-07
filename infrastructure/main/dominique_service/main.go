@@ -15,7 +15,7 @@ Config Format
 --------------
   influxdb_address = string
   influxdb_token = string
-  redis_address = string
+  state_address = string
 
   postgres_host = string
   postgres_port = int
@@ -30,7 +30,7 @@ Config Format
 */
 
 type dominiqueConfig struct {
-	RedisDBAddress              string        `toml:"redis_address"`
+	StateServiceAddress         string        `toml:"state_address"`
 	InfluxDBAddress             string        `toml:"influxdb_address"`
 	InfluxDBToken               string        `toml:"influxdb_token"`
 	PostgresHost                string        `toml:"postgres_host"`
@@ -55,7 +55,7 @@ func main() {
 	listenAddr := ":" + strconv.Itoa(conf.Port)
 
 	// Create resources
-	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisDBAddress)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.StateServiceAddress)
 	if err != nil {
 		panic(err)
 	}

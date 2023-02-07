@@ -12,13 +12,13 @@ import (
 /*
 Config Format
 --------------
-redis_address = string
+state_address = string
 listen_port = int
 */
 
 type reikoConfig struct {
-	RedisDBAddress string `toml:"redis_address"`
-	Port           int    `toml:"listen_port"`
+	StateServiceAddress string `toml:"state_address"`
+	Port                int    `toml:"listen_port"`
 }
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 	}
 	listenAddr := ":" + strconv.Itoa(conf.Port)
 
-	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisDBAddress)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.StateServiceAddress)
 	if err != nil {
 		panic(err)
 	}

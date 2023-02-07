@@ -18,7 +18,7 @@ mmdb_geo_file = string
 
 pull_decider_api = string
 
-redis_address = string
+state_address = string
 
 [regions.pnw]
   min_latitude = float64
@@ -33,7 +33,7 @@ type (
 		RouteListenPort       int    `toml:"route_listen_port"`
 		MaxMindGeoFile        string `toml:"mmdb_geo_file"`
 		PullDeciderAPIAddress string `toml:"pull_decider_api"`
-		RedisAddress          string `toml:"redis_address"`
+		StateServiceAddress   string `toml:"state_address"`
 		Regions               map[string]region
 	}
 
@@ -71,7 +71,7 @@ func main() {
 	routeListenAddr := ":" + strconv.Itoa(conf.RouteListenPort)
 
 	// Create resources
-	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisAddress)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.StateServiceAddress)
 	if err != nil {
 		panic(err)
 	}

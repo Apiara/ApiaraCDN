@@ -27,7 +27,7 @@ validate_api = string
 process_api = string
 coordinate_api = string
 
-redis_address = string
+state_address = string
 */
 
 type (
@@ -41,7 +41,7 @@ type (
 		ValidateAPIAddress   string        `toml:"validate_api"`
 		ProcessAPIAddress    string        `toml:"process_api"`
 		CoordinateAPIAddress string        `toml:"coordinate_api"`
-		RedisAddress         string        `toml:"redis_address"`
+		StateServiceAddress  string        `toml:"state_address"`
 	}
 )
 
@@ -58,7 +58,7 @@ func main() {
 	serviceListenAddr := ":" + strconv.Itoa(conf.ServiceListenPort)
 
 	// Create resources
-	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.RedisAddress)
+	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.StateServiceAddress)
 	if err != nil {
 		panic(err)
 	}
