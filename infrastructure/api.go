@@ -89,6 +89,7 @@ const (
 	// Edge network content state resources
 	StateAPIIsServerServingResource            = "/server/cid/exists"
 	StateAPIGetContentServerListResource       = "/content/cid/servers"
+	StateAPIGetServerContentListResource       = "/server/cid/list"
 	StateAPIIsContentActiveResource            = "/content/cid/active"
 	StateAPIWasContentPulledResource           = "/server/cid/pulled"
 	StateAPICreateContentLocationEntryResource = "/server/cid/create"

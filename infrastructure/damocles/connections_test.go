@@ -5,7 +5,7 @@ import "testing"
 func TestEndpointConnectionManager(t *testing.T) {
 	category := "fid"
 	ws := &mockWebsocket{
-		msgs:       [][]byte{[]byte{}},
+		msgs:       [][]byte{{}},
 		writeCount: 0,
 	}
 	connections := NewEndpointConnectionManager()

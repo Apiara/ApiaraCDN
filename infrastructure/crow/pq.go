@@ -50,7 +50,7 @@ func (d *dataPriorityQueue) remove(id string) error {
 	// Fetch item to remove
 	item, ok := d.updateMap[id]
 	if !ok {
-		return fmt.Errorf("Failed to remove %s. %s doesn't exist", id, id)
+		return fmt.Errorf("failed to remove %s. %s doesn't exist", id, id)
 	}
 
 	// Force item to top of heap and pop

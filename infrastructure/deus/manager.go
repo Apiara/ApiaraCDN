@@ -189,6 +189,7 @@ func (m *MasterContentManager) publishContent(serverAddr string, functionlID str
 
 	// Perform content publishing request to dataspace allocator
 	query.Add(infra.ByteSizeHeader, strconv.FormatInt(size, 10))
+	query.Add(infra.LocationHeader, serverAddr)
 	err = m.sendHTTPMessage(m.publishDataAPIAddr, query.Encode())
 	if err != nil {
 		return err
@@ -219,15 +220,16 @@ func (m *MasterContentManager) stopServing(serverAddr string, cid string) error 
 	return nil
 }
 
-func (m *MasterContentManager) unpublishContent(cid string) error {
+func (m *MasterContentManager) unpublishContent(serverAddr string, cid string) error {
 	fid, err := m.dataIndex.GetContentFunctionalID(cid)
 	if err != nil {
 		return err
 	}
 
-	// Send purge request to coordination layer
+	// Send purge request to allocation server
 	query := url.Values{}
 	query.Add(infra.FunctionalIDHeader, fid)
+	query.Add(infra.LocationHeader, serverAddr)
 	err = m.sendHTTPMessage(m.unpublishDataAPIAddr, query.Encode())
 	if err != nil {
 		return err
@@ -285,7 +287,7 @@ func (m *MasterContentManager) Remove(cid string, serverAddr string, dynamic boo
 	}
 
 	if dynamic && !dynamicallySet {
-		return fmt.Errorf("Cannot dynamically remove %s from %s since it was manually pushed", cid, serverAddr)
+		return fmt.Errorf("cannot dynamically remove %s from %s since it was manually pushed", cid, serverAddr)
 	}
 	if err := m.serveState.DeleteContentLocationEntry(cid, serverAddr); err != nil {
 		return err
@@ -293,6 +295,9 @@ func (m *MasterContentManager) Remove(cid string, serverAddr string, dynamic boo
 
 	// Purge from coordination infrastructure
 	if err := m.stopServing(serverAddr, cid); err != nil {
+		return err
+	}
+	if err := m.unpublishContent(serverAddr, cid); err != nil {
 		return err
 	}
 
@@ -304,9 +309,6 @@ func (m *MasterContentManager) Remove(cid string, serverAddr string, dynamic boo
 
 	if !inUse {
 		if err := m.deleteProcessedContent(cid); err != nil {
-			return err
-		}
-		if err := m.unpublishContent(cid); err != nil {
 			return err
 		}
 	}

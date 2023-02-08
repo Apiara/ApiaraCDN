@@ -11,19 +11,19 @@ func TestDataPriorityQueue(t *testing.T) {
 	pq := newDataPriorityQueue()
 
 	items := []*dataItem{
-		&dataItem{
+		{
 			allocations: 20,
 			id:          "2",
 		},
-		&dataItem{
+		{
 			allocations: 17,
 			id:          "1",
 		},
-		&dataItem{
+		{
 			allocations: 47,
 			id:          "3",
 		},
-		&dataItem{
+		{
 			allocations: 1,
 			id:          "0",
 		},

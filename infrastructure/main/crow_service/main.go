@@ -33,7 +33,7 @@ func main() {
 
 	allocatorAddr := ":" + strconv.Itoa(conf.AllocatorPort)
 	serviceAddr := ":" + strconv.Itoa(conf.ServicePort)
-	allocator := crow.NewEvenDataAllocator(conf.SizeClasses)
+	allocator := crow.NewCompoundLocationDataAllocator(conf.SizeClasses)
 
 	go crow.StartDataAllocatorAPI(allocatorAddr, allocator)
 	crow.StartServiceAPI(serviceAddr, allocator)

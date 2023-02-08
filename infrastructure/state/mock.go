@@ -103,6 +103,10 @@ func (m *MockMicroserviceState) ContentServerList(cid string) ([]string, error) 
 	return nil, nil
 }
 
+func (m *MockMicroserviceState) ServerContentList(server string) ([]string, error) {
+	return nil, nil
+}
+
 func (m *MockMicroserviceState) IsContentBeingServed(cid string) (bool, error) {
 	return false, nil
 }

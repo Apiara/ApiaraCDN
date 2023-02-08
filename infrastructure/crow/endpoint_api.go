@@ -17,9 +17,10 @@ type allocationResponse struct {
 StartDataAllocatorAPI starts the API service for endpoints to
 be allocated data to serve on the network
 */
-func StartDataAllocatorAPI(listenAddr string, allocator DataAllocator) {
+func StartDataAllocatorAPI(listenAddr string, allocator LocationAwareDataAllocator) {
 	allocateAPI := http.NewServeMux()
 	allocateAPI.HandleFunc(infra.CrowAllocateAPIResource, func(resp http.ResponseWriter, req *http.Request) {
+		location := req.URL.Query().Get(infra.LocationHeader)
 		bytesStr := req.URL.Query().Get(infra.ByteSizeHeader)
 		availableSpace, err := strconv.ParseInt(bytesStr, 10, 64)
 		if err != nil {
@@ -28,7 +29,7 @@ func StartDataAllocatorAPI(listenAddr string, allocator DataAllocator) {
 			return
 		}
 
-		serveList, err := allocator.AllocateSpace(availableSpace)
+		serveList, err := allocator.AllocateSpace(location, availableSpace)
 		if err != nil {
 			log.Println(err)
 			resp.WriteHeader(http.StatusInternalServerError)

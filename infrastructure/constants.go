@@ -4,6 +4,7 @@ const (
 	ContentIDHeader    = "content_id"
 	ServerIDHeader     = "server_id"
 	FunctionalIDHeader = "functional_id"
+	LocationHeader     = "location"
 	ByteSizeHeader     = "bytes"
 )
 

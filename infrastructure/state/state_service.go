@@ -167,6 +167,18 @@ func setDataServiceContentLocationResources(mux *http.ServeMux, manager Microser
 		sendViaGob(resources, resp)
 	})
 
+	mux.HandleFunc(infra.StateAPIGetServerContentListResource, func(resp http.ResponseWriter, req *http.Request) {
+		server := req.URL.Query().Get(ServerHeader)
+
+		result, err := manager.ServerContentList(server)
+		if err != nil {
+			resp.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+			return
+		}
+		sendViaGob(result, resp)
+	})
+
 	mux.HandleFunc(infra.StateAPIIsContentActiveResource, func(resp http.ResponseWriter, req *http.Request) {
 		cid := req.URL.Query().Get(ContentIDHeader)
 

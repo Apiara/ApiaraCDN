@@ -47,6 +47,7 @@ type MicroserviceState interface {
 	// Content location information
 	IsContentServedByServer(cid string, serverID string) (bool, error)
 	ContentServerList(cid string) ([]string, error)
+	ServerContentList(serverID string) ([]string, error)
 	IsContentBeingServed(cid string) (bool, error)
 	WasContentPulled(cid string, serverID string) (bool, error)
 	CreateContentLocationEntry(cid string, serverID string, pulled bool) error
@@ -406,6 +407,19 @@ func (r *RedisMicroserviceState) ContentServerList(cid string) ([]string, error)
 		return nil, fmt.Errorf("failed to get server list for content(%s): %w", cid, err)
 	}
 	return servers, nil
+}
+
+// ServerContentList returns the list of content a server is currently serving
+func (r *RedisMicroserviceState) ServerContentList(serverID string) ([]string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
+	serving, err := r.rdb.SMembers(r.ctx, servingKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get serving list for server(%s): %w", serverID, err)
+	}
+	return serving, nil
 }
 
 // IsContentBeingServed returns whether or not a piece of content is being served anywhere on the network

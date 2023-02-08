@@ -12,10 +12,11 @@ import (
 StartServiceAPI starts the API that informs the service of what content
 to start or stop allocating to endpoints
 */
-func StartServiceAPI(listenAddr string, allocator DataAllocator) {
+func StartServiceAPI(listenAddr string, allocator LocationAwareDataAllocator) {
 	serviceAPI := http.NewServeMux()
 
 	serviceAPI.HandleFunc(infra.CrowServiceAPIPublishResource, func(resp http.ResponseWriter, req *http.Request) {
+		location := req.URL.Query().Get(infra.LocationHeader)
 		fid := req.URL.Query().Get(infra.FunctionalIDHeader)
 		sizeStr := req.URL.Query().Get(infra.ByteSizeHeader)
 
@@ -26,15 +27,16 @@ func StartServiceAPI(listenAddr string, allocator DataAllocator) {
 			return
 		}
 
-		if err = allocator.NewEntry(fid, byteSize); err != nil {
+		if err = allocator.NewEntry(location, fid, byteSize); err != nil {
 			log.Println(err)
 			resp.WriteHeader(http.StatusInternalServerError)
 		}
 	})
 	serviceAPI.HandleFunc(infra.CrowServiceAPIPurgeResource, func(resp http.ResponseWriter, req *http.Request) {
+		location := req.URL.Query().Get(infra.LocationHeader)
 		fid := req.URL.Query().Get(infra.FunctionalIDHeader)
 
-		if err := allocator.DelEntry(fid); err != nil {
+		if err := allocator.DelEntry(location, fid); err != nil {
 			log.Println(err)
 			resp.WriteHeader(http.StatusInternalServerError)
 		}
