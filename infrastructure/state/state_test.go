@@ -28,6 +28,11 @@ func TestRedisMicroserviceState(t *testing.T) {
 		t.Fatalf("Failed to set region address: %v\n", err)
 	}
 
+	sids, err := microserviceState.ServerList()
+	assert.Nil(t, err, "error should be nil for ServerList")
+	assert.Len(t, sids, 1, "server list should be 1")
+	assert.Equal(t, server, sids[0], "server values should match")
+
 	retAddress, err := microserviceState.GetRegionAddress(region)
 	if err != nil {
 		t.Fatalf("Failed to get region address: %v\n", err)

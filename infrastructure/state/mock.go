@@ -94,6 +94,10 @@ func (m *MockMicroserviceState) DeleteContentLocationEntry(cid string, serverID 
 	return nil
 }
 
+func (m *MockMicroserviceState) ServerList() ([]string, error) {
+	return nil, nil
+}
+
 func (m *MockMicroserviceState) IsContentServedByServer(cid string, serverID string) (bool, error) {
 	_, ok := m.store[cid+serverID]
 	return ok, nil

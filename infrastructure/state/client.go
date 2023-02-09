@@ -29,6 +29,7 @@ type MicroserviceStateAPIClient struct {
 	getContentSize             string
 	createContentEntry         string
 	deleteContentEntry         string
+	getAllServers              string
 	isServerServing            string
 	getServerList              string
 	getContentList             string
@@ -55,10 +56,10 @@ func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAP
 		infra.StateAPIGetRegionResource, infra.StateAPISetRegionResource, infra.StateAPIDeleteRegionResource,
 		infra.StateAPIGetFunctionalIDResource, infra.StateAPIGetContentIDResource, infra.StateAPIGetContentResourcesResource,
 		infra.StateAPIGetContentSizeResource, infra.StateAPICreateContentEntryResource, infra.StateAPIDeleteContentEntryResource,
-		infra.StateAPIIsServerServingResource, infra.StateAPIGetServerContentListResource, infra.StateAPIGetContentServerListResource,
-		infra.StateAPIIsContentActiveResource, infra.StateAPIWasContentPulledResource, infra.StateAPICreateContentLocationEntryResource,
-		infra.StateAPIDeleteContentLocationEntryResource, infra.StateAPIGetContentPullRulesResource, infra.StateAPIDoesRuleExistResource,
-		infra.StateAPICreateContentPullRuleResource, infra.StateAPIDeleteContentPullRuleResource,
+		infra.StateAPIGetServerListResource, infra.StateAPIIsServerServingResource, infra.StateAPIGetServerContentListResource,
+		infra.StateAPIGetContentServerListResource, infra.StateAPIIsContentActiveResource, infra.StateAPIWasContentPulledResource,
+		infra.StateAPICreateContentLocationEntryResource, infra.StateAPIDeleteContentLocationEntryResource, infra.StateAPIGetContentPullRulesResource,
+		infra.StateAPIDoesRuleExistResource, infra.StateAPICreateContentPullRuleResource, infra.StateAPIDeleteContentPullRuleResource,
 	}
 
 	var err error
@@ -78,6 +79,7 @@ func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAP
 		apiEndpoints[8], apiEndpoints[9], apiEndpoints[10], apiEndpoints[11],
 		apiEndpoints[12], apiEndpoints[13], apiEndpoints[14], apiEndpoints[15],
 		apiEndpoints[16], apiEndpoints[17], apiEndpoints[18], apiEndpoints[19],
+		apiEndpoints[20],
 	}, nil
 }
 
@@ -219,6 +221,14 @@ func (c *MicroserviceStateAPIClient) DeleteContentEntry(cid string) error {
 		return fmt.Errorf("failed to delete content(%s) entry: %w", cid, err)
 	}
 	return nil
+}
+
+func (c *MicroserviceStateAPIClient) ServerList() ([]string, error) {
+	var result []string
+	if err := makeHTTPRequest(c.getAllServers, nil, nil, c.client, &result); err != nil {
+		return nil, fmt.Errorf("failed to get all servers: %w", err)
+	}
+	return result, nil
 }
 
 func (c *MicroserviceStateAPIClient) IsContentServedByServer(cid string, server string) (bool, error) {

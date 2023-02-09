@@ -45,6 +45,7 @@ type MicroserviceState interface {
 	ContentMetadataState
 
 	// Content location information
+	ServerList() ([]string, error)
 	IsContentServedByServer(cid string, serverID string) (bool, error)
 	ContentServerList(cid string) ([]string, error)
 	ServerContentList(serverID string) ([]string, error)
@@ -381,6 +382,27 @@ func (r *RedisMicroserviceState) DeleteContentLocationEntry(cid string, serverID
 		return err
 	}
 	return nil
+}
+
+func (r *RedisMicroserviceState) ServerList() ([]string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	errMsg := "failed to get server list: %w"
+	regions, err := r.rdb.Keys(r.ctx, RedisRegionTable+"*"+RedisRegionServerAttr).Result()
+	if err != nil {
+		return nil, fmt.Errorf(errMsg, err)
+	}
+
+	servers := make([]string, len(regions))
+	for i, regionKey := range regions {
+		server, err := r.rdb.Get(r.ctx, regionKey).Result()
+		if err != nil {
+			return nil, fmt.Errorf(errMsg, err)
+		}
+		servers[i] = server
+	}
+	return servers, nil
 }
 
 // IsContentServedByServer returns whether or not a content ID is being served by a server
