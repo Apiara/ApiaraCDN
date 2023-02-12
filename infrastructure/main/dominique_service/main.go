@@ -26,7 +26,9 @@ Config Format
   max_report_variability_bytes = int
   batch_remediation_frequency = time.Duration
   max_report_gap = time.Duration
-  listen_port = int
+
+  report_listen_port = int
+  service_listen_port = int
 */
 
 type dominiqueConfig struct {
@@ -41,7 +43,8 @@ type dominiqueConfig struct {
 	AcceptableReportVariability int64         `toml:"max_report_variability_bytes"`
 	ReportRetrievalTimeout      time.Duration `toml:"max_report_gap"`
 	BatchRemediationFrequency   time.Duration `toml:"batch_remediation_frequency"`
-	Port                        int           `toml:"listen_port"`
+	ReportListenPort            int           `toml:"report_listen_port"`
+	ServiceListenPort           int           `toml:"service_listen_port"`
 }
 
 func main() {
@@ -52,7 +55,8 @@ func main() {
 	if err := config.ReadTOMLConfig(*fnamePtr, &conf); err != nil {
 		panic(err)
 	}
-	listenAddr := ":" + strconv.Itoa(conf.Port)
+	serviceAddr := ":" + strconv.Itoa(conf.ServiceListenPort)
+	reportAddr := ":" + strconv.Itoa(conf.ReportListenPort)
 
 	// Create resources
 	microserviceState, err := state.NewMicroserviceStateAPIClient(conf.StateServiceAddress)
@@ -71,8 +75,9 @@ func main() {
 		dominique.NewByteOffsetRemediator(conf.AcceptableReportVariability),
 	}
 
-	// Start core reporting service
-	go dominique.StartReportingAPI(listenAddr, matcher)
+	// Start APIs
+	go dominique.StartReportingAPI(reportAddr, matcher)
+	go dominique.StartDataAccessAPI(serviceAddr, timeseries)
 
 	// Start batch remediation service
 	dominique.StartRemediaton(conf.BatchRemediationFrequency, timeseries, remediators, remediationQueue)

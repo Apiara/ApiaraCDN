@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
@@ -65,7 +66,7 @@ func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAP
 	var err error
 	apiEndpoints := make([]string, len(apiResources))
 	for i, resource := range apiResources {
-		apiEndpoints[i], err = url.JoinPath(stateServiceAPI, resource)
+		apiEndpoints[i], err = url.JoinPath(strings.TrimSpace(stateServiceAPI), resource)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create microservice API client with address(%s): %w", stateServiceAPI, err)
 		}
