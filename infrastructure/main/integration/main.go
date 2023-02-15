@@ -73,13 +73,16 @@ func startServices(serviceBinaries map[string]string, rootDir string, logRoot st
 		cmd := exec.Command(fname, "-config", configFile)
 		go func(serviceName string, command *exec.Cmd) {
 			// Merge process outputs
+			errMsg := "Service %s shutting down(SYSTEM BROKEN): %s\n"
 			stdout, err := command.StdoutPipe()
 			if err != nil {
-				panic(err)
+				fmt.Printf(errMsg, serviceName, err.Error())
+				return
 			}
 			stderr, err := command.StderrPipe()
 			if err != nil {
-				panic(err)
+				fmt.Printf(errMsg, serviceName, err.Error())
+				return
 			}
 
 			// Create logging output
@@ -87,27 +90,30 @@ func startServices(serviceBinaries map[string]string, rootDir string, logRoot st
 			scanner := bufio.NewScanner(output)
 			logFile, err := os.Create(path.Join(logRoot, serviceName+".log"))
 			if err != nil {
-				panic(err)
+				fmt.Printf(errMsg, serviceName, err.Error())
+				return
 			}
 
 			// Run command
 			fmt.Printf("[*] Starting service %s... ", serviceName)
 			if err = command.Start(); err != nil {
-				fmt.Printf("failed\n")
-				panic(err)
+				fmt.Printf(errMsg, serviceName, err.Error())
+				return
 			}
 			fmt.Printf("PID: %d\n", command.Process.Pid)
 			fmt.Printf("\tWriting output to %s\n", logFile.Name())
 
 			// Forward all output ot log file
 			for scanner.Scan() {
-				msg := scanner.Text()
+				msg := scanner.Text() + "\n"
 				if _, err = logFile.WriteString(msg); err != nil {
-					panic(err)
+					fmt.Printf(errMsg, serviceName, err.Error())
+					return
 				}
 			}
 			if err = command.Wait(); err != nil {
-				panic(err)
+				fmt.Printf(errMsg, serviceName, err.Error())
+				return
 			}
 		}(service, cmd)
 	}

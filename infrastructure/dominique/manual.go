@@ -59,7 +59,7 @@ func NewPostgresRemediationQueue(host string, port int, user string,
 
 	// Open database connection
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s "+
-		"dbname=%s sslmode=disable", host, port, user, pass, dbname)
+		"dbname=%s", host, port, user, pass, dbname)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
