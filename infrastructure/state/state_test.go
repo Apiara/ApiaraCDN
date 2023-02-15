@@ -11,7 +11,7 @@ func TestRedisMicroserviceState(t *testing.T) {
 	// Setup primary service
 	redisAddr := ":7777"
 	primaryState := NewRedisMicroserviceState(redisAddr)
-	port := ":12345"
+	port := ":12346"
 	go StartDataService(port, primaryState)
 	time.Sleep(time.Second)
 
@@ -96,6 +96,15 @@ func TestRedisMicroserviceState(t *testing.T) {
 		t.Fatalf("Failed to delete entry: %v", err)
 	}
 
+	// Test content<->server mapping lists after Content Location Entry created
+	servers, err := microserviceState.ContentServerList(cid)
+	assert.Nil(t, err, "ContentServerList error return should be nil")
+	assert.Equal(t, 0, len(servers), "Server list should be size 0")
+
+	cids, err := microserviceState.ServerContentList(server)
+	assert.Nil(t, err, "ServerContentList error return should be nil")
+	assert.Equal(t, 0, len(cids), "Content list should be size 0")
+
 	// Test content location
 	if err := microserviceState.CreateContentLocationEntry(cid, server, true); err != nil {
 		t.Fatalf("Failed to set content serving state: %v\n", err)
@@ -116,6 +125,17 @@ func TestRedisMicroserviceState(t *testing.T) {
 	if !dyn {
 		t.Fatalf("Failed to see that content was set dynamically\n")
 	}
+
+	// Test content<->server mapping lists after Content Location Entry created
+	servers, err = microserviceState.ContentServerList(cid)
+	assert.Nil(t, err, "ContentServerList error return should be nil")
+	assert.Equal(t, 1, len(servers), "Server list should be size 1")
+	assert.Equal(t, server, servers[0], "Server returned in Server List was wrong")
+
+	cids, err = microserviceState.ServerContentList(server)
+	assert.Nil(t, err, "ServerContentList error return should be nil")
+	assert.Equal(t, 1, len(cids), "Content list should be size 1")
+	assert.Equal(t, cid, cids[0], "Content returned in Content List was wrong")
 
 	if err = microserviceState.DeleteContentLocationEntry(cid, server); err != nil {
 		t.Fatalf("Failed to remove content serve state: %v\n", err)
@@ -151,4 +171,5 @@ func TestRedisMicroserviceState(t *testing.T) {
 	if err = microserviceState.DeleteContentPullRule(cid); err != nil {
 		t.Fatalf("Failed to delete rule: %v\n", err)
 	}
+
 }

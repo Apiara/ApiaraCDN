@@ -96,7 +96,8 @@ func startServices(serviceBinaries map[string]string, rootDir string, logRoot st
 				fmt.Printf("failed\n")
 				panic(err)
 			}
-			fmt.Printf("writing output to %s\n", logFile.Name())
+			fmt.Printf("PID: %d\n", command.Process.Pid)
+			fmt.Printf("\tWriting output to %s\n", logFile.Name())
 
 			// Forward all output ot log file
 			for scanner.Scan() {

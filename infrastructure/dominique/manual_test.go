@@ -12,7 +12,7 @@ func TestPostgresRemediationQueue(t *testing.T) {
 	user := "postgres"
 	port := 5432
 	host := "localhost"
-	password := "dominique_test"
+	password := "postgres"
 
 	clientRep := &ClientReport{
 		SessionID:    fmt.Sprintf("session_id_%d", time.Now().Unix()),

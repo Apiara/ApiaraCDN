@@ -425,7 +425,9 @@ func (r *RedisMicroserviceState) ContentServerList(cid string) ([]string, error)
 
 	locationKey := RedisContentMetadataTable + infra.URLToSafeName(cid) + RedisContentMetadataLocationAttr
 	servers, err := r.rdb.SMembers(r.ctx, locationKey).Result()
-	if err != nil {
+	if err == redis.Nil {
+		servers = []string{}
+	} else if err != nil {
 		return nil, fmt.Errorf("failed to get server list for content(%s): %w", cid, err)
 	}
 	return servers, nil
@@ -438,7 +440,9 @@ func (r *RedisMicroserviceState) ServerContentList(serverID string) ([]string, e
 
 	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
 	serving, err := r.rdb.SMembers(r.ctx, servingKey).Result()
-	if err != nil {
+	if err == redis.Nil {
+		serving = []string{}
+	} else if err != nil {
 		return nil, fmt.Errorf("failed to get serving list for server(%s): %w", serverID, err)
 	}
 	return serving, nil

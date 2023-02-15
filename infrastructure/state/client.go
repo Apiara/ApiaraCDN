@@ -57,8 +57,8 @@ func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAP
 		infra.StateAPIGetRegionResource, infra.StateAPISetRegionResource, infra.StateAPIDeleteRegionResource,
 		infra.StateAPIGetFunctionalIDResource, infra.StateAPIGetContentIDResource, infra.StateAPIGetContentResourcesResource,
 		infra.StateAPIGetContentSizeResource, infra.StateAPICreateContentEntryResource, infra.StateAPIDeleteContentEntryResource,
-		infra.StateAPIGetServerListResource, infra.StateAPIIsServerServingResource, infra.StateAPIGetServerContentListResource,
-		infra.StateAPIGetContentServerListResource, infra.StateAPIIsContentActiveResource, infra.StateAPIWasContentPulledResource,
+		infra.StateAPIGetServerListResource, infra.StateAPIIsServerServingResource, infra.StateAPIGetContentServerListResource,
+		infra.StateAPIGetServerContentListResource, infra.StateAPIIsContentActiveResource, infra.StateAPIWasContentPulledResource,
 		infra.StateAPICreateContentLocationEntryResource, infra.StateAPIDeleteContentLocationEntryResource, infra.StateAPIGetContentPullRulesResource,
 		infra.StateAPIDoesRuleExistResource, infra.StateAPICreateContentPullRuleResource, infra.StateAPIDeleteContentPullRuleResource,
 	}
