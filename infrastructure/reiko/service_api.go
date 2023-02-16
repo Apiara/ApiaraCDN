@@ -7,10 +7,6 @@ import (
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
-const (
-	ContentRuleHeader = "content_rule"
-)
-
 /*
 StartServiceAPI starts the API used checking whether a content id
 is valid and can be served by the network
@@ -39,7 +35,7 @@ func StartServiceAPI(listenAddr string, ruleset ContentRules) {
 	// Set content rule
 	serviceAPI.HandleFunc(infra.ReikoServiceAPIAddRuleResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			rule := req.URL.Query().Get(ContentRuleHeader)
+			rule := req.URL.Query().Get(infra.ContentRuleHeader)
 
 			if err := ruleset.CreateContentPullRule(rule); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
@@ -50,7 +46,7 @@ func StartServiceAPI(listenAddr string, ruleset ContentRules) {
 	// Remove content rule
 	serviceAPI.HandleFunc(infra.ReikoServiceAPIDelRuleResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			rule := req.URL.Query().Get(ContentRuleHeader)
+			rule := req.URL.Query().Get(infra.ContentRuleHeader)
 
 			if err := ruleset.DeleteContentPullRule(rule); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)

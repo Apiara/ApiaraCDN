@@ -6,6 +6,7 @@ const (
 	FunctionalIDHeader = "functional_id"
 	LocationHeader     = "location"
 	ByteSizeHeader     = "bytes"
+	ContentRuleHeader  = "content_rule"
 )
 
 // Status type for a cyprus data processing job
