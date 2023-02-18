@@ -22,6 +22,7 @@ Config Format
 */
 
 type damoclesConfig struct {
+	RegionID                  string        `toml:"region_id"`
 	DevicesAPIPort            int           `toml:"devices_listen_port"`
 	ServiceAPIPort            int           `toml:"service_listen_port"`
 	TrackerCollectionDuration time.Duration `toml:"tracker_collection_duration"`
@@ -52,7 +53,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = damocles.LoadCategories(serviceAPIAddr, microserviceState, updater)
+	err = damocles.LoadCategories(conf.RegionID, microserviceState, updater)
 	if err != nil {
 		panic(err)
 	}

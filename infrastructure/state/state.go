@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
@@ -55,16 +56,44 @@ type ContentMetadataState interface {
 	ContentMetadataStateWriter
 }
 
+type ContentLocationStateReader interface {
+	IsContentServedByServer(cid string, serverID string) (bool, error)
+	ContentServerList(cid string) ([]string, error)
+	ServerContentList(serverID string) ([]string, error)
+	IsContentBeingServed(cid string) (bool, error)
+	WasContentPulled(cid string, serverID string) (bool, error)
+}
+
+type ContentLocationStateWriter interface {
+	CreateContentLocationEntry(cid string, serverID string, pulled bool) error
+	DeleteContentLocationEntry(cid string, serverID string) error
+}
+
+type ContentLocationState interface {
+	ContentLocationStateReader
+	ContentLocationStateWriter
+}
+
+type ContentPullRuleStateReader interface {
+	GetContentPullRules() ([]string, error)
+	ContentPullRuleExists(rule string) (bool, error)
+}
+
+type ContentPullRuleStateWriter interface {
+	CreateContentPullRule(rule string) error
+	DeleteContentPullRule(rule string) error
+}
+
+type ContentPullRuleState interface {
+	ContentPullRuleStateReader
+	ContentPullRuleStateWriter
+}
+
 /*
 MicroserviceState represents an object that can be used to
 read/write to the shared microservice state safely
 */
 type MicroserviceState interface {
-	// Server region mapping
-	GetRegionAddress(location string) (string, error)
-	SetRegionAddress(location string, address string) error
-	RemoveRegionAddress(location string) error
-
 	// Content information
 	ContentMetadataState
 
@@ -73,27 +102,14 @@ type MicroserviceState interface {
 
 	// Content location information
 	ServerList() ([]string, error)
-	IsContentServedByServer(cid string, serverID string) (bool, error)
-	ContentServerList(cid string) ([]string, error)
-	ServerContentList(serverID string) ([]string, error)
-	IsContentBeingServed(cid string) (bool, error)
-	WasContentPulled(cid string, serverID string) (bool, error)
-	CreateContentLocationEntry(cid string, serverID string, pulled bool) error
-	DeleteContentLocationEntry(cid string, serverID string) error
+	ContentLocationState
 
 	// Content pull rules
-	GetContentPullRules() ([]string, error)
-	ContentPullRuleExists(rule string) (bool, error)
-	CreateContentPullRule(rule string) error
-	DeleteContentPullRule(rule string) error
+	ContentPullRuleState
 }
 
 const (
 	RedisKeyDelimiter = ":"
-
-	// Region to server mapping table
-	RedisRegionTable      = "region:"
-	RedisRegionServerAttr = ":server"
 
 	// Content metadata tables
 	RedisContentMetadataTable         = "content:"
@@ -140,46 +156,6 @@ func NewRedisMicroserviceState(addr string) *RedisMicroserviceState {
 		ctx:   context.Background(),
 		mutex: &sync.RWMutex{},
 	}
-}
-
-// GetRegionAddress retrieves the server address for the 'location'
-func (r *RedisMicroserviceState) GetRegionAddress(location string) (string, error) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
-	serverKey := RedisRegionTable + location + RedisRegionServerAttr
-	server, err := r.rdb.Get(r.ctx, serverKey).Result()
-	if err == redis.Nil {
-		return "", fmt.Errorf("no server ID for region %s", location)
-	} else if err != nil {
-		return "", fmt.Errorf("failed to get server ID for region(%s): %w", location, err)
-	}
-	return server, nil
-}
-
-// SetRegionAddress sets the server address that services a specific region
-func (r *RedisMicroserviceState) SetRegionAddress(location string, address string) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	serverKey := RedisRegionTable + location + RedisRegionServerAttr
-	err := r.rdb.Set(r.ctx, serverKey, address, 0).Err()
-	if err != nil {
-		return fmt.Errorf("failed to create region(%s) to server(%s) entry: %w", location, address, err)
-	}
-	return nil
-}
-
-// RemoveRegionAddress removes the address associated with a region
-func (r *RedisMicroserviceState) RemoveRegionAddress(location string) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	serverKey := RedisRegionTable + location + RedisRegionServerAttr
-	if err := r.rdb.Del(r.ctx, serverKey).Err(); err != nil {
-		return fmt.Errorf("failed to remove region(%s) server entry: %w", location, err)
-	}
-	return nil
 }
 
 // CreateContentEntry creates a metadata entry for a piece of content
@@ -519,18 +495,18 @@ func (r *RedisMicroserviceState) ServerList() ([]string, error) {
 	defer r.mutex.RUnlock()
 
 	errMsg := "failed to get server list: %w"
-	regions, err := r.rdb.Keys(r.ctx, RedisRegionTable+"*"+RedisRegionServerAttr).Result()
+	edgeServers, err := r.rdb.Keys(r.ctx, RedisContentEdgeServerTable+"*"+RedisContentEdgeServerPrivateAddrAttr).Result()
 	if err != nil {
 		return nil, fmt.Errorf(errMsg, err)
 	}
 
-	servers := make([]string, len(regions))
-	for i, regionKey := range regions {
-		server, err := r.rdb.Get(r.ctx, regionKey).Result()
-		if err != nil {
-			return nil, fmt.Errorf(errMsg, err)
+	servers := make([]string, len(edgeServers))
+	for i, edgeServerKey := range edgeServers {
+		keyParts := strings.Split(edgeServerKey, RedisKeyDelimiter)
+		if len(keyParts) != 3 {
+			return nil, fmt.Errorf(errMsg, fmt.Errorf("invalid edge key: %s", edgeServerKey))
 		}
-		servers[i] = server
+		servers[i] = keyParts[1]
 	}
 	return servers, nil
 }

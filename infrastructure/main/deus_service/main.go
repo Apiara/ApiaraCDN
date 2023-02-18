@@ -69,8 +69,8 @@ func main() {
 		panic(err)
 	}
 
-	manager, err := deus.NewMasterContentManager(microserviceState, microserviceState,
-		conf.ProcessAPIAddress, conf.CoordinateAPIAddress)
+	manager, err := deus.NewMasterContentManager(microserviceState, conf.ProcessAPIAddress,
+		conf.CoordinateAPIAddress)
 	if err != nil {
 		panic(err)
 	}

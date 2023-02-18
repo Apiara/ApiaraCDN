@@ -30,13 +30,13 @@ type ThresholdPullDecider struct {
 	mutex         *sync.Mutex
 }
 
-func generateServePairKey(cid string, serverID string) string {
-	return cid + "|" + serverID
+func generateServePairKey(cid string, regionID string) string {
+	return cid + "|" + regionID
 }
 
 func unpackServePairKey(key string) (string, string) {
-	cid, serverID, _ := strings.Cut(key, "|")
-	return cid, serverID
+	cid, regionID, _ := strings.Cut(key, "|")
+	return cid, regionID
 }
 
 /*
@@ -44,7 +44,7 @@ NewThresholdPullDecider creates a new ThresholdPullDecider and starts the
 decision thread with the passed in requestThreshold and decisionInterval params
 */
 func NewThresholdPullDecider(validator ContentValidator, contentManager ContentManager,
-	dataState ContentLocationIndex, requestThreshold int, decisionInterval time.Duration) *ThresholdPullDecider {
+	state ManagerMicroserviceState, requestThreshold int, decisionInterval time.Duration) *ThresholdPullDecider {
 
 	// Create ThresholdPullDecider objects
 	decider := &ThresholdPullDecider{
@@ -59,10 +59,10 @@ func NewThresholdPullDecider(validator ContentValidator, contentManager ContentM
 			time.Sleep(decisionInterval)
 			decider.mutex.Lock()
 			for key, count := range decider.requestCounts {
-				cid, serverAddr := unpackServePairKey(key)
+				cid, regionID := unpackServePairKey(key)
 				// Add data if above threshold and not being served
 
-				serving, err := dataState.IsContentServedByServer(cid, serverAddr)
+				serving, err := state.IsContentServedByServer(cid, regionID)
 				if err != nil {
 					log.Println(err)
 					continue
@@ -71,14 +71,14 @@ func NewThresholdPullDecider(validator ContentValidator, contentManager ContentM
 				if !serving {
 					if count > requestThreshold {
 						contentManager.Lock()
-						if err := contentManager.Serve(cid, serverAddr, true); err != nil {
+						if err := contentManager.Serve(cid, regionID, true); err != nil {
 							log.Println(err)
 						}
 						contentManager.Unlock()
 					}
 				} else if count < requestThreshold { // Remove data if below threshold and being served
 					contentManager.Lock()
-					if err := contentManager.Remove(cid, serverAddr, true); err != nil {
+					if err := contentManager.Remove(cid, regionID, true); err != nil {
 						delete(decider.requestCounts, key)
 						log.Println(err)
 					}
@@ -98,14 +98,14 @@ func NewThresholdPullDecider(validator ContentValidator, contentManager ContentM
 }
 
 // NewRequest logs a request that was made for future pull decisions
-func (t *ThresholdPullDecider) NewRequest(cid string, serverID string) error {
+func (t *ThresholdPullDecider) NewRequest(cid string, regionID string) error {
 	isValid, err := t.validator.IsValid(cid)
 	if err != nil {
 		return err
 	}
 
 	if isValid {
-		key := generateServePairKey(cid, serverID)
+		key := generateServePairKey(cid, regionID)
 		t.mutex.Lock()
 		t.requestCounts[key]++
 		t.mutex.Unlock()

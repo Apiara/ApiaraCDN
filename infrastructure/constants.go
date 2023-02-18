@@ -1,14 +1,15 @@
 package infrastructure
 
 const (
-	ServerIDHeader = "server_id"
+	RegionServerIDHeader    = "server_id"
+	ServerPublicAddrHeader  = "server_public"
+	ServerPrivateAddrHeader = "server_private"
 
 	ContentIDHeader           = "content_id"
 	ContentFunctionalIDHeader = "functional_id"
 	ByteSizeHeader            = "bytes"
 
 	RegionNameHeader   = "region_id"
-	LocationHeader     = "location"
 	MMDBFileNameHeader = "mmdb"
 
 	ContentRuleHeader = "content_rule"

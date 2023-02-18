@@ -21,9 +21,6 @@ on behalf of the client
 type MicroserviceStateAPIClient struct {
 	client *http.Client
 
-	getRegion                  string
-	setRegion                  string
-	deleteRegion               string
 	getFunctionalID            string
 	getContentID               string
 	getContentResources        string
@@ -58,7 +55,6 @@ func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAP
 
 	// Create resource paths
 	apiResources := []string{
-		infra.StateAPIGetRegionResource, infra.StateAPISetRegionResource, infra.StateAPIDeleteRegionResource,
 		infra.StateAPIGetFunctionalIDResource, infra.StateAPIGetContentIDResource, infra.StateAPIGetContentResourcesResource,
 		infra.StateAPIGetContentSizeResource, infra.StateAPICreateContentEntryResource, infra.StateAPIDeleteContentEntryResource,
 		infra.StateAPICreateServerEntryResource, infra.StateAPIDeleteServerEntryResource, infra.StateAPIGetServerPublicAddressResource,
@@ -86,8 +82,7 @@ func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAP
 		apiEndpoints[8], apiEndpoints[9], apiEndpoints[10], apiEndpoints[11],
 		apiEndpoints[12], apiEndpoints[13], apiEndpoints[14], apiEndpoints[15],
 		apiEndpoints[16], apiEndpoints[17], apiEndpoints[18], apiEndpoints[19],
-		apiEndpoints[20], apiEndpoints[21], apiEndpoints[22], apiEndpoints[23],
-		apiEndpoints[24],
+		apiEndpoints[20], apiEndpoints[21],
 	}, nil
 }
 
@@ -120,38 +115,6 @@ func makeHTTPRequest(url string, query url.Values, body io.Reader, client *http.
 		if err = dec.Decode(result); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func (c *MicroserviceStateAPIClient) GetRegionAddress(location string) (string, error) {
-	query := url.Values{}
-	query.Add(RegionHeader, location)
-
-	var result string
-	if err := makeHTTPRequest(c.getRegion, query, nil, c.client, &result); err != nil {
-		return "", fmt.Errorf("failed to get region(%s) address: %w", location, err)
-	}
-	return result, nil
-}
-
-func (c *MicroserviceStateAPIClient) SetRegionAddress(location string, address string) error {
-	query := url.Values{}
-	query.Add(RegionHeader, location)
-	query.Add(ServerHeader, address)
-
-	if err := makeHTTPRequest(c.setRegion, query, nil, c.client, nil); err != nil {
-		return fmt.Errorf("failed to set region(%s) to server(%s): %w", location, address, err)
-	}
-	return nil
-}
-
-func (c *MicroserviceStateAPIClient) RemoveRegionAddress(location string) error {
-	query := url.Values{}
-	query.Add(RegionHeader, location)
-
-	if err := makeHTTPRequest(c.deleteRegion, query, nil, c.client, nil); err != nil {
-		return fmt.Errorf("failed to delete region(%s): %w", location, err)
 	}
 	return nil
 }

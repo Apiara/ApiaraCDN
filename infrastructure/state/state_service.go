@@ -31,37 +31,6 @@ func sendViaGob(data interface{}, resp http.ResponseWriter) {
 
 type apiResourceAccumulator func(*http.ServeMux, MicroserviceState)
 
-func setDataServiceRegionResources(mux *http.ServeMux, manager MicroserviceState) {
-	mux.HandleFunc(infra.StateAPIGetRegionResource, func(resp http.ResponseWriter, req *http.Request) {
-		region := req.URL.Query().Get(RegionHeader)
-		server, err := manager.GetRegionAddress(region)
-		if err != nil {
-			resp.WriteHeader(http.StatusInternalServerError)
-			log.Println(err)
-			return
-		}
-		sendViaGob(server, resp)
-	})
-
-	mux.HandleFunc(infra.StateAPISetRegionResource, func(resp http.ResponseWriter, req *http.Request) {
-		query := req.URL.Query()
-		region := query.Get(RegionHeader)
-		server := query.Get(ServerHeader)
-		if err := manager.SetRegionAddress(region, server); err != nil {
-			resp.WriteHeader(http.StatusInternalServerError)
-			log.Println(err)
-		}
-	})
-
-	mux.HandleFunc(infra.StateAPIDeleteRegionResource, func(resp http.ResponseWriter, req *http.Request) {
-		region := req.URL.Query().Get(RegionHeader)
-		if err := manager.RemoveRegionAddress(region); err != nil {
-			resp.WriteHeader(http.StatusInternalServerError)
-			log.Println(err)
-		}
-	})
-}
-
 type metadataCreate struct {
 	ContentID    string
 	FunctionalID string
@@ -331,7 +300,6 @@ func setDataServiceContentPullRuleResources(mux *http.ServeMux, manager Microser
 
 func StartDataService(listenAddr string, manager MicroserviceState) {
 	resources := []apiResourceAccumulator{
-		setDataServiceRegionResources,
 		setDataServiceContentMetadataResources,
 		setDataServiceEdgeServerResources,
 		setDataServiceContentLocationResources,

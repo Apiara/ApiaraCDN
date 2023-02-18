@@ -10,6 +10,7 @@ import (
 
 // IPGeoFinder provides IP Address to Region lookups
 type IPGeoFinder interface {
+	RegionList() []string
 	Location(ip string) (string, error)
 	LoadDatabase(dbFile string) error
 }
@@ -36,8 +37,7 @@ func (r *Region) Contains(lat float64, long float64) bool {
 }
 
 /*
-	MaxMindIPGeoFinder uses MaxMind database files to find IP->coordinate mappings
-
+MaxMindIPGeoFinder uses MaxMind database files to find IP->coordinate mappings
 which are then used to figure out what region an IP address may be in
 */
 type MaxMindIPGeoFinder struct {
@@ -53,6 +53,14 @@ func NewMaxMindIPGeoFinder(mmdbFile string, regions []Region) (*MaxMindIPGeoFind
 		mutex:   &sync.RWMutex{},
 	}
 	return geoFinder, geoFinder.LoadDatabase(mmdbFile)
+}
+
+func (m *MaxMindIPGeoFinder) RegionList() []string {
+	regionNames := make([]string, len(m.regions))
+	for i, region := range m.regions {
+		regionNames[i] = region.Name
+	}
+	return regionNames
 }
 
 func (m *MaxMindIPGeoFinder) LoadDatabase(mmdbFile string) error {
@@ -88,5 +96,5 @@ func (m *MaxMindIPGeoFinder) Location(ipStr string) (string, error) {
 			return possibleRegion.Name, nil
 		}
 	}
-	return "", fmt.Errorf("Failed to find region for %s", ipStr)
+	return "", fmt.Errorf("failed to find region for %s", ipStr)
 }

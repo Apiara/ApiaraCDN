@@ -10,7 +10,6 @@ import (
 	"time"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
-	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 var (
@@ -23,8 +22,8 @@ var (
 
 // ContentManager controls serving and removing data from the network
 type ContentManager interface {
-	Serve(cid string, serverAddr string, dynamic bool) error
-	Remove(cid string, serverAddr string, dynamic bool) error
+	Serve(cid string, regionID string, dynamic bool) error
+	Remove(cid string, regionID string, dynamic bool) error
 	Lock()
 	Unlock()
 }
@@ -51,8 +50,7 @@ func (m *mockContentManager) Unlock() { m.mutex.Unlock() }
 // MasterContentManager implements ContentManager
 type MasterContentManager struct {
 	mutex                *sync.Mutex
-	serveState           ContentLocationIndex
-	dataIndex            state.ContentMetadataState
+	state                ManagerMicroserviceState
 	httpClient           *http.Client
 	processDataAPIAddr   string
 	processStatusAPIAddr string
@@ -65,7 +63,7 @@ type MasterContentManager struct {
 NewMasterContentManager returns a new instances of MasterContentManager
 that uses the processAPI and coordinateAPI to delegate tasks
 */
-func NewMasterContentManager(serverState ContentLocationIndex, index state.ContentMetadataState, processAPI string,
+func NewMasterContentManager(state ManagerMicroserviceState, processAPI string,
 	coordinateAPI string) (*MasterContentManager, error) {
 	// Prepare API resources
 	processDataAPIAddr, err := url.JoinPath(processAPI, infra.CyprusServiceAPIProcessResource)
@@ -91,8 +89,7 @@ func NewMasterContentManager(serverState ContentLocationIndex, index state.Conte
 
 	return &MasterContentManager{
 		mutex:                &sync.Mutex{},
-		serveState:           serverState,
-		dataIndex:            index,
+		state:                state,
 		httpClient:           http.DefaultClient,
 		processDataAPIAddr:   processDataAPIAddr,
 		processStatusAPIAddr: processStatusAPIAddr,
@@ -173,12 +170,12 @@ func (m *MasterContentManager) deleteProcessedContent(cid string) error {
 	return m.sendHTTPMessage(m.deleteDataAPIAddr, query.Encode())
 }
 
-func (m *MasterContentManager) publishContent(serverAddr string, functionlID string, size int64) error {
+func (m *MasterContentManager) publishContent(regionID string, edgeServerAddr string, functionlID string, size int64) error {
 	// Inform session server of new data to serve
 	query := url.Values{}
 	query.Add(infra.ContentFunctionalIDHeader, functionlID)
 
-	serverAddResource, err := url.JoinPath(serverAddr, infra.DamoclesServiceAPIAddResource)
+	serverAddResource, err := url.JoinPath(edgeServerAddr, infra.DamoclesServiceAPIAddResource)
 	if err != nil {
 		return err
 	}
@@ -189,7 +186,7 @@ func (m *MasterContentManager) publishContent(serverAddr string, functionlID str
 
 	// Perform content publishing request to dataspace allocator
 	query.Add(infra.ByteSizeHeader, strconv.FormatInt(size, 10))
-	query.Add(infra.LocationHeader, serverAddr)
+	query.Add(infra.RegionServerIDHeader, regionID)
 	err = m.sendHTTPMessage(m.publishDataAPIAddr, query.Encode())
 	if err != nil {
 		return err
@@ -199,7 +196,7 @@ func (m *MasterContentManager) publishContent(serverAddr string, functionlID str
 }
 
 func (m *MasterContentManager) stopServing(serverAddr string, cid string) error {
-	fid, err := m.dataIndex.GetContentFunctionalID(cid)
+	fid, err := m.state.GetContentFunctionalID(cid)
 	if err != nil {
 		return err
 	}
@@ -220,8 +217,8 @@ func (m *MasterContentManager) stopServing(serverAddr string, cid string) error 
 	return nil
 }
 
-func (m *MasterContentManager) unpublishContent(serverAddr string, cid string) error {
-	fid, err := m.dataIndex.GetContentFunctionalID(cid)
+func (m *MasterContentManager) unpublishContent(regionID string, cid string) error {
+	fid, err := m.state.GetContentFunctionalID(cid)
 	if err != nil {
 		return err
 	}
@@ -229,7 +226,7 @@ func (m *MasterContentManager) unpublishContent(serverAddr string, cid string) e
 	// Send purge request to allocation server
 	query := url.Values{}
 	query.Add(infra.ContentFunctionalIDHeader, fid)
-	query.Add(infra.LocationHeader, serverAddr)
+	query.Add(infra.RegionServerIDHeader, regionID)
 	err = m.sendHTTPMessage(m.unpublishDataAPIAddr, query.Encode())
 	if err != nil {
 		return err
@@ -238,9 +235,9 @@ func (m *MasterContentManager) unpublishContent(serverAddr string, cid string) e
 }
 
 // Serve attempts serve 'cid' on the network
-func (m *MasterContentManager) Serve(cid string, serverAddr string, dynamic bool) error {
+func (m *MasterContentManager) Serve(cid string, regionID string, dynamic bool) error {
 	// Check if content has been processed yet
-	processed, err := m.serveState.IsContentBeingServed(cid)
+	processed, err := m.state.IsContentBeingServed(cid)
 	if err != nil {
 		return err
 	}
@@ -254,23 +251,27 @@ func (m *MasterContentManager) Serve(cid string, serverAddr string, dynamic bool
 			return err
 		}
 	} else {
-		functionalID, err = m.dataIndex.GetContentFunctionalID(cid)
+		functionalID, err = m.state.GetContentFunctionalID(cid)
 		if err != nil {
 			return err
 		}
-		size, err = m.dataIndex.GetContentSize(cid)
+		size, err = m.state.GetContentSize(cid)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Publish content to coordination infrastructure
-	if err = m.publishContent(serverAddr, functionalID, size); err != nil {
+	serverAddr, err := m.state.GetServerPrivateAddress(regionID)
+	if err != nil {
+		return err
+	}
+	if err = m.publishContent(regionID, serverAddr, functionalID, size); err != nil {
 		return err
 	}
 
 	// Update global state
-	return m.serveState.CreateContentLocationEntry(cid, serverAddr, dynamic)
+	return m.state.CreateContentLocationEntry(cid, regionID, dynamic)
 }
 
 /*
@@ -279,30 +280,34 @@ if the content was pushed onto the network manually and the remove request
 was performed dynamically since only a manual removal request can purge data
 that was manually pushed
 */
-func (m *MasterContentManager) Remove(cid string, serverAddr string, dynamic bool) error {
+func (m *MasterContentManager) Remove(cid string, regionID string, dynamic bool) error {
 	// Update state
-	dynamicallySet, err := m.serveState.WasContentPulled(cid, serverAddr)
+	dynamicallySet, err := m.state.WasContentPulled(cid, regionID)
 	if err != nil {
 		return err
 	}
 
 	if dynamic && !dynamicallySet {
-		return fmt.Errorf("cannot dynamically remove %s from %s since it was manually pushed", cid, serverAddr)
+		return fmt.Errorf("cannot dynamically remove %s from %s since it was manually pushed", cid, regionID)
 	}
-	if err := m.serveState.DeleteContentLocationEntry(cid, serverAddr); err != nil {
+	if err := m.state.DeleteContentLocationEntry(cid, regionID); err != nil {
 		return err
 	}
 
 	// Purge from coordination infrastructure
+	serverAddr, err := m.state.GetServerPrivateAddress(regionID)
+	if err != nil {
+		return err
+	}
 	if err := m.stopServing(serverAddr, cid); err != nil {
 		return err
 	}
-	if err := m.unpublishContent(serverAddr, cid); err != nil {
+	if err := m.unpublishContent(regionID, cid); err != nil {
 		return err
 	}
 
 	// Delete processed data if no longer being served anywhere on the network
-	inUse, err := m.serveState.IsContentBeingServed(cid)
+	inUse, err := m.state.IsContentBeingServed(cid)
 	if err != nil {
 		return err
 	}

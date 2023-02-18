@@ -9,7 +9,7 @@ import (
 )
 
 func handleStaleReport(cid string, checker DataValidator,
-	locIndex ContentLocationIndex, manager ContentManager) {
+	state ManagerMicroserviceState, manager ContentManager) {
 
 	// Check report validity
 	stale, err := checker.IsStale(cid)
@@ -23,7 +23,7 @@ func handleStaleReport(cid string, checker DataValidator,
 
 	// Find all affected servers
 	dynamic := make(map[string]bool)
-	serverList, err := locIndex.ContentServerList(cid)
+	serverList, err := state.ContentServerList(cid)
 	if err != nil {
 		log.Printf("Failed to lookup list of servers serving %s: %v\n", cid, err)
 		return
@@ -33,7 +33,7 @@ func handleStaleReport(cid string, checker DataValidator,
 	manager.Lock()
 	defer manager.Unlock()
 	for _, serverID := range serverList {
-		dynamic[serverID], err = locIndex.WasContentPulled(cid, serverID)
+		dynamic[serverID], err = state.WasContentPulled(cid, serverID)
 		if err != nil {
 			log.Printf("Failed to lookup if %s was dynamically set to server %s: %v\n", cid, serverID, err)
 		} else if err = manager.Remove(cid, serverID, dynamic[serverID]); err != nil {
@@ -44,14 +44,14 @@ func handleStaleReport(cid string, checker DataValidator,
 	// Re-process removed content
 	for _, serverID := range serverList {
 		if err = manager.Serve(cid, serverID, dynamic[serverID]); err != nil {
-			locIndex.DeleteContentLocationEntry(cid, serverID)
+			state.DeleteContentLocationEntry(cid, serverID)
 			log.Printf("Failed to re-add %s to server %s: %v\n", cid, serverID, err)
 		}
 	}
 }
 
 // StartServiceAPI starts the API used for changing of network state during runtime
-func StartServiceAPI(listenAddr string, checker DataValidator, locIndex ContentLocationIndex,
+func StartServiceAPI(listenAddr string, checker DataValidator, state ManagerMicroserviceState,
 	decider PullDecider, manager ContentManager) {
 	serviceAPI := http.NewServeMux()
 
@@ -59,7 +59,7 @@ func StartServiceAPI(listenAddr string, checker DataValidator, locIndex ContentL
 	serviceAPI.HandleFunc(infra.DeusServiceAPIPushResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			serverID := req.URL.Query().Get(infra.ServerIDHeader)
+			serverID := req.URL.Query().Get(infra.RegionServerIDHeader)
 
 			fmt.Printf("Got request for (%s, %s) push\n", cid, serverID)
 
@@ -75,7 +75,7 @@ func StartServiceAPI(listenAddr string, checker DataValidator, locIndex ContentL
 	serviceAPI.HandleFunc(infra.DeusServiceAPIPurgeResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			serverID := req.URL.Query().Get(infra.ServerIDHeader)
+			serverID := req.URL.Query().Get(infra.RegionServerIDHeader)
 
 			manager.Lock()
 			defer manager.Unlock()
@@ -89,14 +89,14 @@ func StartServiceAPI(listenAddr string, checker DataValidator, locIndex ContentL
 	serviceAPI.HandleFunc(infra.DeusServiceAPIStaleReportResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			go handleStaleReport(cid, checker, locIndex, manager)
+			go handleStaleReport(cid, checker, state, manager)
 		})
 
 	// Decider update update the pull decider with a new request
 	serviceAPI.HandleFunc(infra.DeusServiceAPIPullDeciderResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			serverID := req.URL.Query().Get(infra.ServerIDHeader)
+			serverID := req.URL.Query().Get(infra.RegionServerIDHeader)
 			if err := decider.NewRequest(cid, serverID); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)

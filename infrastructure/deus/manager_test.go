@@ -33,19 +33,21 @@ func TestMasterContentManager(t *testing.T) {
 	}()
 
 	// Create resources
+	serverID := "server_id"
 	serverAddr := mockAPIAddr
 	microserviceState := state.NewMockMicroserviceState()
-	manager, err := NewMasterContentManager(microserviceState, microserviceState, mockAPIAddr, mockAPIAddr)
+	manager, err := NewMasterContentManager(microserviceState, mockAPIAddr, mockAPIAddr)
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
 
+	microserviceState.CreateServerEntry(serverID, serverAddr, serverAddr)
 	// Do Serve test
-	if err := manager.Serve(cid, serverAddr, true); err != nil {
+	if err := manager.Serve(cid, serverID, true); err != nil {
 		t.Fatalf("Failed to start serving data: %v", err)
 	}
 
-	if serving, _ := microserviceState.IsContentServedByServer(cid, serverAddr); !serving {
+	if serving, _ := microserviceState.IsContentServedByServer(cid, serverID); !serving {
 		t.Fatalf("Failed propogate serve success to content state")
 	}
 
@@ -53,11 +55,11 @@ func TestMasterContentManager(t *testing.T) {
 	microserviceState.CreateContentEntry(cid, functionalID, 1024, []string{})
 
 	// Do Remove test
-	if err := manager.Remove(cid, serverAddr, true); err != nil {
+	if err := manager.Remove(cid, serverID, true); err != nil {
 		t.Fatalf("Failed to stop serving data: %v", err)
 	}
 
-	if serving, _ := microserviceState.IsContentServedByServer(cid, serverAddr); serving {
+	if serving, _ := microserviceState.IsContentServedByServer(cid, serverID); serving {
 		t.Fatalf("Failed propogate serve removal to content state")
 	}
 }

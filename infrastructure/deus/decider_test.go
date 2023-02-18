@@ -4,12 +4,14 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Apiara/ApiaraCDN/infrastructure/state"
 )
 
 func TestThresholdPullDecider(t *testing.T) {
 	validator := &mockContentValidator{}
 	manager := &mockContentManager{&sync.Mutex{}, make(map[string]bool)}
-	state := &mockContentLocationIndex{map[string]struct{}{}}
+	state := state.NewMockMicroserviceState()
 	threshold := 10
 	interval := time.Second
 
@@ -27,7 +29,7 @@ func TestThresholdPullDecider(t *testing.T) {
 	if _, ok := manager.serving[cid+server]; !ok {
 		t.Fatal("Failed to start serving content when passed threshold")
 	}
-	state.serveSet[cid+server] = struct{}{}
+	state.CreateContentLocationEntry(cid, server, true)
 
 	// Test stop serving
 	time.Sleep(interval)

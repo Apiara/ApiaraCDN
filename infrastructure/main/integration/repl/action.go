@@ -84,7 +84,7 @@ func createActionMap(conf replConfig) map[string]action {
 	actions[PushCommand] = func(args []string) (string, error) {
 		query := url.Values{}
 		query.Add(infra.ContentIDHeader, args[0])
-		query.Add(infra.ServerIDHeader, args[1])
+		query.Add(infra.RegionServerIDHeader, args[1])
 
 		err := makeHTTPRequest(pushResource, query, nil, http.DefaultClient, nil)
 		if err != nil {
@@ -95,7 +95,7 @@ func createActionMap(conf replConfig) map[string]action {
 	actions[PurgeCommand] = func(args []string) (string, error) {
 		query := url.Values{}
 		query.Add(infra.ContentIDHeader, args[0])
-		query.Add(infra.ServerIDHeader, args[1])
+		query.Add(infra.RegionServerIDHeader, args[1])
 
 		err := makeHTTPRequest(purgeResource, query, nil, http.DefaultClient, nil)
 		if err != nil {
@@ -145,7 +145,7 @@ func createActionMap(conf replConfig) map[string]action {
 	actions[AllocateCommand] = func(args []string) (string, error) {
 		var result string
 		query := url.Values{}
-		query.Add(infra.LocationHeader, args[0])
+		query.Add(infra.RegionServerIDHeader, args[0])
 		query.Add(infra.ByteSizeHeader, args[1])
 
 		err := makeHTTPRequest(allocateResource, query, nil, http.DefaultClient, &result)
@@ -157,7 +157,7 @@ func createActionMap(conf replConfig) map[string]action {
 	actions[SetRegionCommand] = func(args []string) (string, error) {
 		query := url.Values{}
 		query.Add(infra.RegionNameHeader, args[0])
-		query.Add(infra.ServerIDHeader, args[1])
+		query.Add(infra.RegionServerIDHeader, args[1])
 
 		err := makeHTTPRequest(setRegionResource, query, nil, http.DefaultClient, nil)
 		if err != nil {

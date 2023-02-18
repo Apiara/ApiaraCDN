@@ -21,34 +21,6 @@ func TestRedisMicroserviceState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test region mappings
-	region := "Oregon"
-	server := "server"
-	if err := microserviceState.SetRegionAddress(region, server); err != nil {
-		t.Fatalf("Failed to set region address: %v\n", err)
-	}
-
-	sids, err := microserviceState.ServerList()
-	assert.Nil(t, err, "error should be nil for ServerList")
-	assert.Len(t, sids, 1, "server list should be 1")
-	assert.Equal(t, server, sids[0], "server values should match")
-
-	retAddress, err := microserviceState.GetRegionAddress(region)
-	if err != nil {
-		t.Fatalf("Failed to get region address: %v\n", err)
-	}
-	if retAddress != server {
-		t.Fatalf("Failed to get correct region address. Got %s instead\n", retAddress)
-	}
-
-	if err = microserviceState.RemoveRegionAddress(region); err != nil {
-		t.Fatalf("Failed to remove region address: %v\n", err)
-	}
-	retAddress, err = microserviceState.GetRegionAddress(region)
-	if err == nil {
-		t.Fatalf("Found region address when should have failed: %s\n", retAddress)
-	}
-
 	// Test content information + propogation to location
 	cid := "http://www.random.com/something"
 	fid := "functionalID"
@@ -97,22 +69,27 @@ func TestRedisMicroserviceState(t *testing.T) {
 	}
 
 	// Test server entry
-	sid := "server_id"
+	serverID := "server_id"
 	sidPublicAddr := "public_addr"
 	sidPrivateAddr := "private_addr"
 
-	err = microserviceState.CreateServerEntry(sid, sidPublicAddr, sidPrivateAddr)
+	err = microserviceState.CreateServerEntry(serverID, sidPublicAddr, sidPrivateAddr)
 	assert.Nil(t, err, "CreateServerEntry should succeed")
 
-	retPublicAddr, err := microserviceState.GetServerPublicAddress(sid)
+	sids, err := microserviceState.ServerList()
+	assert.Nil(t, err, "error should be nil for ServerList")
+	assert.Len(t, sids, 1, "server list should be 1")
+	assert.Equal(t, serverID, sids[0], "server values should match")
+
+	retPublicAddr, err := microserviceState.GetServerPublicAddress(serverID)
 	assert.Nil(t, err, "GetServerPublicAddress should succeed")
 	assert.Equal(t, sidPublicAddr, retPublicAddr, "stored and retrieved public addresses don't match")
 
-	retPrivateAddr, err := microserviceState.GetServerPrivateAddress(sid)
+	retPrivateAddr, err := microserviceState.GetServerPrivateAddress(serverID)
 	assert.Nil(t, err, "GetServerPrivateAddress should succeed")
 	assert.Equal(t, sidPrivateAddr, retPrivateAddr, "stored and retrieved private addresses don't match")
 
-	err = microserviceState.DeleteServerEntry(sid)
+	err = microserviceState.DeleteServerEntry(serverID)
 	assert.Nil(t, err, "DeleteServerEntry should succeed")
 
 	// Test content<->server mapping lists after Content Location Entry created
@@ -120,16 +97,16 @@ func TestRedisMicroserviceState(t *testing.T) {
 	assert.Nil(t, err, "ContentServerList error return should be nil")
 	assert.Equal(t, 0, len(servers), "Server list should be size 0")
 
-	cids, err := microserviceState.ServerContentList(server)
+	cids, err := microserviceState.ServerContentList(serverID)
 	assert.Nil(t, err, "ServerContentList error return should be nil")
 	assert.Equal(t, 0, len(cids), "Content list should be size 0")
 
 	// Test content location
-	if err := microserviceState.CreateContentLocationEntry(cid, server, true); err != nil {
+	if err := microserviceState.CreateContentLocationEntry(cid, serverID, true); err != nil {
 		t.Fatalf("Failed to set content serving state: %v\n", err)
 	}
 
-	serving, err := microserviceState.IsContentServedByServer(cid, server)
+	serving, err := microserviceState.IsContentServedByServer(cid, serverID)
 	if err != nil {
 		t.Fatalf("Failed to check if content being served: %v\n", err)
 	}
@@ -137,7 +114,7 @@ func TestRedisMicroserviceState(t *testing.T) {
 		t.Fatalf("Failed to see that content is being served\n")
 	}
 
-	dyn, err := microserviceState.WasContentPulled(cid, server)
+	dyn, err := microserviceState.WasContentPulled(cid, serverID)
 	if err != nil {
 		t.Fatalf("Failed to check if content was dynamically set: %v\n", err)
 	}
@@ -149,17 +126,17 @@ func TestRedisMicroserviceState(t *testing.T) {
 	servers, err = microserviceState.ContentServerList(cid)
 	assert.Nil(t, err, "ContentServerList error return should be nil")
 	assert.Equal(t, 1, len(servers), "Server list should be size 1")
-	assert.Equal(t, server, servers[0], "Server returned in Server List was wrong")
+	assert.Equal(t, serverID, servers[0], "Server returned in Server List was wrong")
 
-	cids, err = microserviceState.ServerContentList(server)
+	cids, err = microserviceState.ServerContentList(serverID)
 	assert.Nil(t, err, "ServerContentList error return should be nil")
 	assert.Equal(t, 1, len(cids), "Content list should be size 1")
 	assert.Equal(t, cid, cids[0], "Content returned in Content List was wrong")
 
-	if err = microserviceState.DeleteContentLocationEntry(cid, server); err != nil {
+	if err = microserviceState.DeleteContentLocationEntry(cid, serverID); err != nil {
 		t.Fatalf("Failed to remove content serve state: %v\n", err)
 	}
-	serving, err = microserviceState.IsContentServedByServer(cid, server)
+	serving, err = microserviceState.IsContentServedByServer(cid, serverID)
 	if err != nil {
 		t.Fatalf("Failed to check if content being served: %v\n", err)
 	}

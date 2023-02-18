@@ -1,6 +1,9 @@
 package state
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var errMock error = errors.New("mock microservice state failed")
 
@@ -12,31 +15,47 @@ func NewMockMicroserviceState() *MockMicroserviceState {
 	return &MockMicroserviceState{make(map[string]interface{})}
 }
 
-func (m *MockMicroserviceState) GetRegionAddress(location string) (string, error) {
-	if result, ok := m.store[location]; ok {
-		return result.(string), nil
-	}
-	return "", errMock
-}
-
-func (m *MockMicroserviceState) SetRegionAddress(location string, address string) error {
-	m.store[location] = address
-	return nil
-}
-
-func (m *MockMicroserviceState) RemoveRegionAddress(location string) error {
-	delete(m.store, location)
-	return nil
-}
-
 const (
 	mockFIDKey      = ":fid"
 	mockCIDKey      = ":cid"
 	mockSizeKey     = ":size"
 	mockResourceKey = ":resource"
 
+	mockPublicAddrKey  = ":public"
+	mockPrivateAddrKey = ":private"
+
 	mockRulesKey = "rules:list"
 )
+
+func (m *MockMicroserviceState) CreateServerEntry(sid string, public string, private string) error {
+	pubAddrKey := sid + mockPublicAddrKey
+	privAddrKey := sid + mockPrivateAddrKey
+	m.store[pubAddrKey] = public
+	m.store[privAddrKey] = private
+	return nil
+}
+
+func (m *MockMicroserviceState) DeleteServerEntry(sid string) error {
+	if _, ok := m.store[sid+mockPublicAddrKey]; ok {
+		delete(m.store, sid+mockPublicAddrKey)
+		delete(m.store, sid+mockPrivateAddrKey)
+	}
+	return nil
+}
+
+func (m *MockMicroserviceState) GetServerPublicAddress(sid string) (string, error) {
+	if value, ok := m.store[sid+mockPublicAddrKey]; ok {
+		return value.(string), nil
+	}
+	return "", fmt.Errorf("no public address")
+}
+
+func (m *MockMicroserviceState) GetServerPrivateAddress(sid string) (string, error) {
+	if value, ok := m.store[sid+mockPrivateAddrKey]; ok {
+		return value.(string), nil
+	}
+	return "", fmt.Errorf("no private address")
+}
 
 func (m *MockMicroserviceState) CreateContentEntry(cid string, fid string, size int64, resources []string) error {
 	m.store[cid+mockFIDKey] = fid
