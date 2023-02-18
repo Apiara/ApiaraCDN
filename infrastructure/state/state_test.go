@@ -96,6 +96,25 @@ func TestRedisMicroserviceState(t *testing.T) {
 		t.Fatalf("Failed to delete entry: %v", err)
 	}
 
+	// Test server entry
+	sid := "server_id"
+	sidPublicAddr := "public_addr"
+	sidPrivateAddr := "private_addr"
+
+	err = microserviceState.CreateServerEntry(sid, sidPublicAddr, sidPrivateAddr)
+	assert.Nil(t, err, "CreateServerEntry should succeed")
+
+	retPublicAddr, err := microserviceState.GetServerPublicAddress(sid)
+	assert.Nil(t, err, "GetServerPublicAddress should succeed")
+	assert.Equal(t, sidPublicAddr, retPublicAddr, "stored and retrieved public addresses don't match")
+
+	retPrivateAddr, err := microserviceState.GetServerPrivateAddress(sid)
+	assert.Nil(t, err, "GetServerPrivateAddress should succeed")
+	assert.Equal(t, sidPrivateAddr, retPrivateAddr, "stored and retrieved private addresses don't match")
+
+	err = microserviceState.DeleteServerEntry(sid)
+	assert.Nil(t, err, "DeleteServerEntry should succeed")
+
 	// Test content<->server mapping lists after Content Location Entry created
 	servers, err := microserviceState.ContentServerList(cid)
 	assert.Nil(t, err, "ContentServerList error return should be nil")

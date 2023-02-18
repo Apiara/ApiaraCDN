@@ -1,6 +1,7 @@
 package deus
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -60,11 +61,13 @@ func StartServiceAPI(listenAddr string, checker DataValidator, locIndex ContentL
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
 			serverID := req.URL.Query().Get(infra.ServerIDHeader)
 
+			fmt.Printf("Got request for (%s, %s) push\n", cid, serverID)
+
 			manager.Lock()
 			defer manager.Unlock()
 			if err := manager.Serve(cid, serverID, false); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
-				log.Println(err)
+				log.Println(err.Error())
 			}
 		})
 

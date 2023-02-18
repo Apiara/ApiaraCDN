@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
 	"strconv"
 
 	"github.com/Apiara/ApiaraCDN/infrastructure/cyprus"
@@ -69,6 +71,7 @@ func main() {
 	}
 
 	// Run
+	log.SetOutput(os.Stdout)
 	go cyprus.StartDataProcessingAPI(processingListenAddr, preprocessor, processor, storage)
 	cyprus.StartStorageAPI(storageListenAddr, conf.PublishingDir)
 }

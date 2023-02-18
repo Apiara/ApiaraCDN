@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
 	"strconv"
 	"time"
 
@@ -88,7 +90,11 @@ func main() {
 
 	// Create stale data checker
 	staleChecker, err := deus.NewChecksumDataValidator(conf.InternalDataAddr, preprocessor, microserviceState)
+	if err != nil {
+		panic(err)
+	}
 
 	// Start APIs
+	log.SetOutput(os.Stdout)
 	deus.StartServiceAPI(serviceListenAddr, staleChecker, microserviceState, pullDecider, manager)
 }

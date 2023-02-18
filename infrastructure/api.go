@@ -86,6 +86,12 @@ const (
 	StateAPICreateContentEntryResource  = "/content/create"
 	StateAPIDeleteContentEntryResource  = "/content/delete"
 
+	// Edge network server entry resources
+	StateAPICreateServerEntryResource       = "/server/create"
+	StateAPIDeleteServerEntryResource       = "/server/delete"
+	StateAPIGetServerPublicAddressResource  = "/server/public"
+	StateAPIGetServerPrivateAddressResource = "/server/private"
+
 	// Edge network content state resources
 	StateAPIGetServerListResource              = "/server/list"
 	StateAPIIsServerServingResource            = "/server/cid/exists"

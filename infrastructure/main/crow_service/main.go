@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
 	"strconv"
 
 	"github.com/Apiara/ApiaraCDN/infrastructure/crow"
@@ -50,6 +52,7 @@ func main() {
 	}
 
 	// Start service APIs
+	log.SetOutput(os.Stdout)
 	go crow.StartDataAllocatorAPI(allocatorAddr, allocator)
 	crow.StartServiceAPI(serviceAddr, allocator)
 }

@@ -30,6 +30,10 @@ type MicroserviceStateAPIClient struct {
 	getContentSize             string
 	createContentEntry         string
 	deleteContentEntry         string
+	createServerEntry          string
+	deleteServerEntry          string
+	getServerPublicAddr        string
+	getServerPrivateAddr       string
 	getAllServers              string
 	isServerServing            string
 	getServerList              string
@@ -57,10 +61,12 @@ func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAP
 		infra.StateAPIGetRegionResource, infra.StateAPISetRegionResource, infra.StateAPIDeleteRegionResource,
 		infra.StateAPIGetFunctionalIDResource, infra.StateAPIGetContentIDResource, infra.StateAPIGetContentResourcesResource,
 		infra.StateAPIGetContentSizeResource, infra.StateAPICreateContentEntryResource, infra.StateAPIDeleteContentEntryResource,
-		infra.StateAPIGetServerListResource, infra.StateAPIIsServerServingResource, infra.StateAPIGetContentServerListResource,
-		infra.StateAPIGetServerContentListResource, infra.StateAPIIsContentActiveResource, infra.StateAPIWasContentPulledResource,
-		infra.StateAPICreateContentLocationEntryResource, infra.StateAPIDeleteContentLocationEntryResource, infra.StateAPIGetContentPullRulesResource,
-		infra.StateAPIDoesRuleExistResource, infra.StateAPICreateContentPullRuleResource, infra.StateAPIDeleteContentPullRuleResource,
+		infra.StateAPICreateServerEntryResource, infra.StateAPIDeleteServerEntryResource, infra.StateAPIGetServerPublicAddressResource,
+		infra.StateAPIGetServerPrivateAddressResource, infra.StateAPIGetServerListResource, infra.StateAPIIsServerServingResource,
+		infra.StateAPIGetContentServerListResource, infra.StateAPIGetServerContentListResource, infra.StateAPIIsContentActiveResource,
+		infra.StateAPIWasContentPulledResource, infra.StateAPICreateContentLocationEntryResource, infra.StateAPIDeleteContentLocationEntryResource,
+		infra.StateAPIGetContentPullRulesResource, infra.StateAPIDoesRuleExistResource, infra.StateAPICreateContentPullRuleResource,
+		infra.StateAPIDeleteContentPullRuleResource,
 	}
 
 	var err error
@@ -80,7 +86,8 @@ func NewMicroserviceStateAPIClient(stateServiceAPI string) (*MicroserviceStateAP
 		apiEndpoints[8], apiEndpoints[9], apiEndpoints[10], apiEndpoints[11],
 		apiEndpoints[12], apiEndpoints[13], apiEndpoints[14], apiEndpoints[15],
 		apiEndpoints[16], apiEndpoints[17], apiEndpoints[18], apiEndpoints[19],
-		apiEndpoints[20],
+		apiEndpoints[20], apiEndpoints[21], apiEndpoints[22], apiEndpoints[23],
+		apiEndpoints[24],
 	}, nil
 }
 
@@ -222,6 +229,48 @@ func (c *MicroserviceStateAPIClient) DeleteContentEntry(cid string) error {
 		return fmt.Errorf("failed to delete content(%s) entry: %w", cid, err)
 	}
 	return nil
+}
+
+func (c *MicroserviceStateAPIClient) CreateServerEntry(sid string, publicAddr string, privateAddr string) error {
+	query := url.Values{}
+	query.Add(ServerHeader, sid)
+	query.Add(ServerPublicAddrHeader, publicAddr)
+	query.Add(ServerPrivateAddrHeader, privateAddr)
+	if err := makeHTTPRequest(c.createServerEntry, query, nil, c.client, nil); err != nil {
+		return fmt.Errorf("failed to create server(%s) entry: %w", sid, err)
+	}
+	return nil
+}
+
+func (c *MicroserviceStateAPIClient) DeleteServerEntry(sid string) error {
+	query := url.Values{}
+	query.Add(ServerHeader, sid)
+	if err := makeHTTPRequest(c.deleteServerEntry, query, nil, c.client, nil); err != nil {
+		return fmt.Errorf("failed to delete server(%s) entry: %w", sid, err)
+	}
+	return nil
+}
+
+func (c *MicroserviceStateAPIClient) GetServerPublicAddress(sid string) (string, error) {
+	query := url.Values{}
+	query.Add(ServerHeader, sid)
+
+	var result string
+	if err := makeHTTPRequest(c.getServerPublicAddr, query, nil, c.client, &result); err != nil {
+		return "", fmt.Errorf("failed to get server(%s) public address: %w", sid, err)
+	}
+	return result, nil
+}
+
+func (c *MicroserviceStateAPIClient) GetServerPrivateAddress(sid string) (string, error) {
+	query := url.Values{}
+	query.Add(ServerHeader, sid)
+
+	var result string
+	if err := makeHTTPRequest(c.getServerPrivateAddr, query, nil, c.client, &result); err != nil {
+		return "", fmt.Errorf("failed to get server(%s) private address: %w", sid, err)
+	}
+	return result, nil
 }
 
 func (c *MicroserviceStateAPIClient) ServerList() ([]string, error) {

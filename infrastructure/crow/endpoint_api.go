@@ -42,4 +42,5 @@ func StartDataAllocatorAPI(listenAddr string, allocator LocationAwareDataAllocat
 			resp.WriteHeader(http.StatusInternalServerError)
 		}
 	})
+	http.ListenAndServe(listenAddr, allocateAPI)
 }

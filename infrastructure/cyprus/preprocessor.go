@@ -118,12 +118,12 @@ func (r *RawPreprocessor) IngestMedia(fileURL string) (MediaIngest, error) {
 	// Download single media file
 	outFile, err := ioutil.TempFile(r.outputDir, ingestFilePattern)
 	if err != nil {
-		return MediaIngest{}, fmt.Errorf("Failed to create ingest file: %w", err)
+		return MediaIngest{}, fmt.Errorf("failed to create ingest file: %w", err)
 	}
 	defer outFile.Close()
 
 	if err := r.retrieveFile(fileURL, outFile); err != nil {
-		return MediaIngest{}, fmt.Errorf("Failed to download %s to %s: %w", fileURL, outFile.Name(), err)
+		return MediaIngest{}, fmt.Errorf("failed to download %s to %s: %w", fileURL, outFile.Name(), err)
 	}
 	return MediaIngest{
 		Type: RawMediaType,

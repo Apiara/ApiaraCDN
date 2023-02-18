@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
 	"strconv"
 
 	"github.com/Apiara/ApiaraCDN/infrastructure/amada"
@@ -82,6 +84,7 @@ func main() {
 	}
 
 	// Start APIs
+	log.SetOutput(os.Stdout)
 	go amada.StartServiceAPI(overrideListenAddr, microserviceState, geoFinder)
 	amada.StartDeviceRoutingAPI(routeListenAddr, geoFinder, microserviceState,
 		microserviceState, conf.PullDeciderAPIAddress)

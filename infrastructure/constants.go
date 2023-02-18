@@ -1,12 +1,17 @@
 package infrastructure
 
 const (
-	ContentIDHeader    = "content_id"
-	ServerIDHeader     = "server_id"
-	FunctionalIDHeader = "functional_id"
+	ServerIDHeader = "server_id"
+
+	ContentIDHeader           = "content_id"
+	ContentFunctionalIDHeader = "functional_id"
+	ByteSizeHeader            = "bytes"
+
+	RegionNameHeader   = "region_id"
 	LocationHeader     = "location"
-	ByteSizeHeader     = "bytes"
-	ContentRuleHeader  = "content_rule"
+	MMDBFileNameHeader = "mmdb"
+
+	ContentRuleHeader = "content_rule"
 )
 
 // Status type for a cyprus data processing job

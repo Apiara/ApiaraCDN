@@ -10,13 +10,15 @@ import (
 )
 
 const (
-	RegionHeader           = "region"
-	ServerHeader           = "server"
-	ContentIDHeader        = "content_id"
-	FunctionalIDHeader     = "functional_id"
-	ContentSizeHeader      = "size"
-	ContentWasPulledHeader = "pulled"
-	RuleHeader             = "rule"
+	RegionHeader            = "region"
+	ServerHeader            = "server"
+	ServerPublicAddrHeader  = "server_public"
+	ServerPrivateAddrHeader = "server_private"
+	ContentIDHeader         = "content_id"
+	FunctionalIDHeader      = "functional_id"
+	ContentSizeHeader       = "size"
+	ContentWasPulledHeader  = "pulled"
+	RuleHeader              = "rule"
 )
 
 func sendViaGob(data interface{}, resp http.ResponseWriter) {
@@ -137,6 +139,50 @@ func setDataServiceContentMetadataResources(mux *http.ServeMux, manager Microser
 			log.Println(err)
 			return
 		}
+	})
+}
+
+func setDataServiceEdgeServerResources(mux *http.ServeMux, manager MicroserviceState) {
+	mux.HandleFunc(infra.StateAPICreateServerEntryResource, func(resp http.ResponseWriter, req *http.Request) {
+		query := req.URL.Query()
+		sid := query.Get(ServerHeader)
+		publicAddr := query.Get(ServerPublicAddrHeader)
+		privateAddr := query.Get(ServerPrivateAddrHeader)
+
+		if err := manager.CreateServerEntry(sid, publicAddr, privateAddr); err != nil {
+			resp.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+		}
+	})
+	mux.HandleFunc(infra.StateAPIDeleteServerEntryResource, func(resp http.ResponseWriter, req *http.Request) {
+		sid := req.URL.Query().Get(ServerHeader)
+
+		if err := manager.DeleteServerEntry(sid); err != nil {
+			resp.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+		}
+	})
+	mux.HandleFunc(infra.StateAPIGetServerPublicAddressResource, func(resp http.ResponseWriter, req *http.Request) {
+		sid := req.URL.Query().Get(ServerHeader)
+
+		publicAddr, err := manager.GetServerPublicAddress(sid)
+		if err != nil {
+			resp.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+			return
+		}
+		sendViaGob(publicAddr, resp)
+	})
+	mux.HandleFunc(infra.StateAPIGetServerPrivateAddressResource, func(resp http.ResponseWriter, req *http.Request) {
+		sid := req.URL.Query().Get(ServerHeader)
+
+		privateAddr, err := manager.GetServerPrivateAddress(sid)
+		if err != nil {
+			resp.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+			return
+		}
+		sendViaGob(privateAddr, resp)
 	})
 }
 
@@ -287,6 +333,7 @@ func StartDataService(listenAddr string, manager MicroserviceState) {
 	resources := []apiResourceAccumulator{
 		setDataServiceRegionResources,
 		setDataServiceContentMetadataResources,
+		setDataServiceEdgeServerResources,
 		setDataServiceContentLocationResources,
 		setDataServiceContentPullRuleResources,
 	}

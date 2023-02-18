@@ -176,7 +176,7 @@ func (m *MasterContentManager) deleteProcessedContent(cid string) error {
 func (m *MasterContentManager) publishContent(serverAddr string, functionlID string, size int64) error {
 	// Inform session server of new data to serve
 	query := url.Values{}
-	query.Add(infra.FunctionalIDHeader, functionlID)
+	query.Add(infra.ContentFunctionalIDHeader, functionlID)
 
 	serverAddResource, err := url.JoinPath(serverAddr, infra.DamoclesServiceAPIAddResource)
 	if err != nil {
@@ -206,7 +206,7 @@ func (m *MasterContentManager) stopServing(serverAddr string, cid string) error 
 
 	// Send purge request to session server
 	query := url.Values{}
-	query.Add(infra.FunctionalIDHeader, fid)
+	query.Add(infra.ContentFunctionalIDHeader, fid)
 
 	serverDelResource, err := url.JoinPath(serverAddr, infra.DamoclesServiceAPIDelResource)
 	if err != nil {
@@ -228,7 +228,7 @@ func (m *MasterContentManager) unpublishContent(serverAddr string, cid string) e
 
 	// Send purge request to allocation server
 	query := url.Values{}
-	query.Add(infra.FunctionalIDHeader, fid)
+	query.Add(infra.ContentFunctionalIDHeader, fid)
 	query.Add(infra.LocationHeader, serverAddr)
 	err = m.sendHTTPMessage(m.unpublishDataAPIAddr, query.Encode())
 	if err != nil {

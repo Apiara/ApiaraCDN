@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
 	"strconv"
 
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
@@ -31,5 +33,8 @@ func main() {
 	listenAddr := ":" + strconv.Itoa(conf.Port)
 
 	manager := state.NewRedisMicroserviceState(conf.RedisDBAddress)
+
+	// Start service
+	log.SetOutput(os.Stdout)
 	state.StartDataService(listenAddr, manager)
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
 	"strconv"
 	"time"
 
@@ -80,5 +82,6 @@ func main() {
 	go dominique.StartDataAccessAPI(serviceAddr, timeseries)
 
 	// Start batch remediation service
+	log.SetOutput(os.Stdout)
 	dominique.StartRemediaton(conf.BatchRemediationFrequency, timeseries, remediators, remediationQueue)
 }

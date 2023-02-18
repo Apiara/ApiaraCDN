@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -9,6 +10,29 @@ import (
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 	"github.com/go-redis/redis/v8"
 )
+
+const (
+	unassigned = "(unassigned)"
+)
+
+var (
+	ErrNilState = errors.New("microservice state nil")
+)
+
+type ServerStateWriter interface {
+	CreateServerEntry(sid string, publicAddr string, privateAddr string) error
+	DeleteServerEntry(sid string) error
+}
+
+type ServerStateReader interface {
+	GetServerPublicAddress(sid string) (string, error)
+	GetServerPrivateAddress(sid string) (string, error)
+}
+
+type ServerState interface {
+	ServerStateWriter
+	ServerStateReader
+}
 
 type ContentMetadataStateReader interface {
 	GetContentFunctionalID(cid string) (string, error)
@@ -44,6 +68,9 @@ type MicroserviceState interface {
 	// Content information
 	ContentMetadataState
 
+	// Server information
+	ServerState
+
 	// Content location information
 	ServerList() ([]string, error)
 	IsContentServedByServer(cid string, serverID string) (bool, error)
@@ -62,6 +89,8 @@ type MicroserviceState interface {
 }
 
 const (
+	RedisKeyDelimiter = ":"
+
 	// Region to server mapping table
 	RedisRegionTable      = "region:"
 	RedisRegionServerAttr = ":server"
@@ -77,8 +106,10 @@ const (
 	RedisContentMetadataReverseCIDAttr = ":cid"
 
 	// Content location on edge network tables
-	RedisContentEdgeLocationTable       = "edge:"
-	RedisContentEdgeLocationServingAttr = ":serving"
+	RedisContentEdgeServerTable           = "edge:"
+	RedisContentEdgeServerServingAttr     = ":serving"
+	RedisContentEdgeServerPublicAddrAttr  = ":public"
+	RedisContentEdgeServerPrivateAddrAttr = ":private"
 
 	// Content serve mechanism tracker
 	RedisContentServeMechanismTable      = "mechanism:"
@@ -325,10 +356,10 @@ func (r *RedisMicroserviceState) CreateContentLocationEntry(cid string, serverID
 	defer r.mutex.Unlock()
 
 	// Create all key names in tables
-	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
+	servingKey := RedisContentEdgeServerTable + serverID + RedisContentEdgeServerServingAttr
 	locationKey := RedisContentMetadataTable + infra.URLToSafeName(cid) + RedisContentMetadataLocationAttr
 	mechanismKey := RedisContentServeMechanismTable + infra.URLToSafeName(cid) +
-		infra.URLToSafeName(serverID) + RedisContentServeMechanismPulledAttr
+		RedisKeyDelimiter + serverID + RedisContentServeMechanismPulledAttr
 
 	// Create add transaction
 	errMsg := "failed to perform add update on content(%s)/location(%s): %w"
@@ -352,10 +383,10 @@ func (r *RedisMicroserviceState) CreateContentLocationEntry(cid string, serverID
 
 func (r *RedisMicroserviceState) txDeleteContentLocationEntry(pipe redis.Pipeliner, cid string, serverID string) error {
 	// Create all key names in tables
-	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
+	servingKey := RedisContentEdgeServerTable + serverID + RedisContentEdgeServerServingAttr
 	locationKey := RedisContentMetadataTable + infra.URLToSafeName(cid) + RedisContentMetadataLocationAttr
 	mechanismKey := RedisContentServeMechanismTable + infra.URLToSafeName(cid) +
-		infra.URLToSafeName(serverID) + RedisContentServeMechanismPulledAttr
+		RedisKeyDelimiter + serverID + RedisContentServeMechanismPulledAttr
 
 	// Create deletion transaction
 	errMsg := "failed to perform deletion update on content(%s)/location(%s): %w"
@@ -384,6 +415,105 @@ func (r *RedisMicroserviceState) DeleteContentLocationEntry(cid string, serverID
 	return nil
 }
 
+func (r *RedisMicroserviceState) CreateServerEntry(sid string, publicAddr string, privateAddr string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	// If missing parameter, set to microservice state 'unassigned' value
+	if publicAddr == "" {
+		publicAddr = unassigned
+	}
+	if privateAddr == "" {
+		privateAddr = unassigned
+	}
+
+	// Create keys
+	serverKeyBase := RedisContentEdgeServerTable + sid
+	publicAddrKey := serverKeyBase + RedisContentEdgeServerPublicAddrAttr
+	privateAddrKey := serverKeyBase + RedisContentEdgeServerPrivateAddrAttr
+
+	errMsg := "failed to create server(%s) entry: %w"
+	pipe := r.rdb.TxPipeline()
+	if err := pipe.Set(r.ctx, publicAddrKey, publicAddr, 0).Err(); err != nil {
+		return fmt.Errorf(errMsg, sid, err)
+	}
+	if err := pipe.Set(r.ctx, privateAddrKey, privateAddr, 0).Err(); err != nil {
+		return fmt.Errorf(errMsg, sid, err)
+	}
+	if _, err := pipe.Exec(r.ctx); err != nil {
+		return fmt.Errorf(errMsg, sid, err)
+	}
+	return nil
+}
+
+func (r *RedisMicroserviceState) DeleteServerEntry(sid string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	serverKeyBase := RedisContentEdgeServerTable + sid
+	publicAddrKey := serverKeyBase + RedisContentEdgeServerPublicAddrAttr
+	privateAddrKey := serverKeyBase + RedisContentEdgeServerPrivateAddrAttr
+	contentListKey := serverKeyBase + RedisContentEdgeServerServingAttr
+
+	errMsg := "failed to delete server(%s) entry: %w"
+	pipe := r.rdb.TxPipeline()
+
+	// Get list of all content server is serving
+	contentList, err := pipe.SMembers(r.ctx, contentListKey).Result()
+	if err != nil {
+		return fmt.Errorf(errMsg, sid, err)
+	}
+
+	// Delete all keys from edge server table
+	err = pipe.Del(r.ctx, publicAddrKey, privateAddrKey, contentListKey).Err()
+	if err != nil {
+		return fmt.Errorf(errMsg, sid, err)
+	}
+
+	// Delete server ID from serving lists for individual pieces of content
+	for _, contentID := range contentList {
+		locationKey := RedisContentMetadataTable + infra.URLToSafeName(contentID) + RedisContentMetadataLocationAttr
+		if err = pipe.SRem(r.ctx, locationKey, sid).Err(); err != nil {
+			return fmt.Errorf(errMsg, sid, err)
+		}
+	}
+
+	// Execute transaction
+	if _, err = pipe.Exec(r.ctx); err != nil {
+		return fmt.Errorf(errMsg, sid, err)
+	}
+	return nil
+}
+
+func (r *RedisMicroserviceState) getServerAddress(key string, errMsg string) (string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	addr, err := r.rdb.Get(r.ctx, key).Result()
+	if addr == unassigned {
+		return "", ErrNilState
+	} else if err != nil {
+		return "", fmt.Errorf(errMsg, err)
+	}
+	return addr, nil
+
+}
+
+// Get public facing service API for the server
+func (r *RedisMicroserviceState) GetServerPublicAddress(sid string) (string, error) {
+	errMsg := fmt.Sprintf("failed to get public server(%s) address: ", sid) + "%w"
+	publicAddrKey := RedisContentEdgeServerTable + sid + RedisContentEdgeServerPublicAddrAttr
+	return r.getServerAddress(publicAddrKey, errMsg)
+}
+
+// Get the internal service API address for the server
+func (r *RedisMicroserviceState) GetServerPrivateAddress(sid string) (string, error) {
+	errMsg := fmt.Sprintf("failed to get private server(%s) address: ", sid) + "%w"
+	privateAddrKey := RedisContentEdgeServerTable + sid + RedisContentEdgeServerPrivateAddrAttr
+	return r.getServerAddress(privateAddrKey, errMsg)
+}
+
+// Get a list of all edge server IDs
 func (r *RedisMicroserviceState) ServerList() ([]string, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -410,7 +540,7 @@ func (r *RedisMicroserviceState) IsContentServedByServer(cid string, serverID st
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
+	servingKey := RedisContentEdgeServerTable + serverID + RedisContentEdgeServerServingAttr
 	result, err := r.rdb.SIsMember(r.ctx, servingKey, cid).Result()
 	if err != nil {
 		return false, fmt.Errorf("failed to check if content(%s) is served by server(%s): %w", cid, serverID, err)
@@ -418,11 +548,7 @@ func (r *RedisMicroserviceState) IsContentServedByServer(cid string, serverID st
 	return result, nil
 }
 
-// ContentServerList returns the list of servers currently serving a content ID
-func (r *RedisMicroserviceState) ContentServerList(cid string) ([]string, error) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
+func (r *RedisMicroserviceState) getContentServerList(cid string) ([]string, error) {
 	locationKey := RedisContentMetadataTable + infra.URLToSafeName(cid) + RedisContentMetadataLocationAttr
 	servers, err := r.rdb.SMembers(r.ctx, locationKey).Result()
 	if err == redis.Nil {
@@ -433,12 +559,19 @@ func (r *RedisMicroserviceState) ContentServerList(cid string) ([]string, error)
 	return servers, nil
 }
 
+// ContentServerList returns the list of servers currently serving a content ID
+func (r *RedisMicroserviceState) ContentServerList(cid string) ([]string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return r.getContentServerList(cid)
+}
+
 // ServerContentList returns the list of content a server is currently serving
 func (r *RedisMicroserviceState) ServerContentList(serverID string) ([]string, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	servingKey := RedisContentEdgeLocationTable + infra.URLToSafeName(serverID) + RedisContentEdgeLocationServingAttr
+	servingKey := RedisContentEdgeServerTable + serverID + RedisContentEdgeServerServingAttr
 	serving, err := r.rdb.SMembers(r.ctx, servingKey).Result()
 	if err == redis.Nil {
 		serving = []string{}
@@ -453,7 +586,7 @@ func (r *RedisMicroserviceState) IsContentBeingServed(cid string) (bool, error) 
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	servers, err := r.ContentServerList(cid)
+	servers, err := r.getContentServerList(cid)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if content(%s) is being served: %w", cid, err)
 	}
@@ -466,7 +599,7 @@ func (r *RedisMicroserviceState) WasContentPulled(cid string, serverID string) (
 	defer r.mutex.RUnlock()
 
 	mechanismKey := RedisContentServeMechanismTable + infra.URLToSafeName(cid) +
-		infra.URLToSafeName(serverID) + RedisContentServeMechanismPulledAttr
+		RedisKeyDelimiter + serverID + RedisContentServeMechanismPulledAttr
 
 	errMsg := "failed to find serve mechanism of content(%s) at server(%s): %w"
 	resultStr, err := r.rdb.Get(r.ctx, mechanismKey).Result()

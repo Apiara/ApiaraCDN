@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
 	"strconv"
 
 	"github.com/Apiara/ApiaraCDN/infrastructure/levi"
@@ -48,6 +50,7 @@ func main() {
 	}
 
 	// Start all specified gateways
+	log.SetOutput(os.Stdout)
 	if conf.ReportAPIListenPort != nil {
 		reportGatewayAddr := "" + strconv.Itoa(*conf.ReportAPIListenPort)
 		go levi.StartReportAPI(reportGatewayAddr, conf.StaleReportAddress, conf.SessionReportAddress)

@@ -21,7 +21,7 @@ func StartServiceAPI(listenAddr string, updater CategoryUpdater) {
 	serviceAPI := http.NewServeMux()
 	serviceAPI.HandleFunc(infra.DamoclesServiceAPIAddResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			id := req.URL.Query().Get(infra.FunctionalIDHeader)
+			id := req.URL.Query().Get(infra.ContentFunctionalIDHeader)
 			if err := updater.CreateCategory(id); err != nil {
 				log.Println(err)
 				resp.WriteHeader(http.StatusInternalServerError)
@@ -29,7 +29,7 @@ func StartServiceAPI(listenAddr string, updater CategoryUpdater) {
 		})
 	serviceAPI.HandleFunc(infra.DamoclesServiceAPIDelResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			id := req.URL.Query().Get(infra.FunctionalIDHeader)
+			id := req.URL.Query().Get(infra.ContentFunctionalIDHeader)
 			if err := updater.DelCategory(id); err != nil {
 				log.Println(err)
 				resp.WriteHeader(http.StatusInternalServerError)

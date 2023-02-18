@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
 	"strconv"
 
 	"github.com/Apiara/ApiaraCDN/infrastructure/main/config"
@@ -36,5 +38,8 @@ func main() {
 		panic(err)
 	}
 	ruleset := reiko.NewPrefixContentRules(microserviceState)
+
+	// Start service
+	log.SetOutput(os.Stdout)
 	reiko.StartServiceAPI(listenAddr, ruleset)
 }
