@@ -1,7 +1,6 @@
 package deus
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -60,8 +59,6 @@ func StartServiceAPI(listenAddr string, checker DataValidator, state ManagerMicr
 		func(resp http.ResponseWriter, req *http.Request) {
 			cid := req.URL.Query().Get(infra.ContentIDHeader)
 			serverID := req.URL.Query().Get(infra.RegionServerIDHeader)
-
-			fmt.Printf("Got request for (%s, %s) push\n", cid, serverID)
 
 			manager.Lock()
 			defer manager.Unlock()

@@ -9,7 +9,6 @@ const (
 	ContentFunctionalIDHeader = "functional_id"
 	ByteSizeHeader            = "bytes"
 
-	RegionNameHeader   = "region_id"
 	MMDBFileNameHeader = "mmdb"
 
 	ContentRuleHeader = "content_rule"

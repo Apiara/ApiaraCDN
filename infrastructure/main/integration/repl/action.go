@@ -156,8 +156,9 @@ func createActionMap(conf replConfig) map[string]action {
 	}
 	actions[SetRegionCommand] = func(args []string) (string, error) {
 		query := url.Values{}
-		query.Add(infra.RegionNameHeader, args[0])
-		query.Add(infra.RegionServerIDHeader, args[1])
+		query.Add(infra.RegionServerIDHeader, args[0])
+		query.Add(infra.ServerPublicAddrHeader, args[1])
+		query.Add(infra.ServerPrivateAddrHeader, args[2])
 
 		err := makeHTTPRequest(setRegionResource, query, nil, http.DefaultClient, nil)
 		if err != nil {
@@ -167,7 +168,7 @@ func createActionMap(conf replConfig) map[string]action {
 	}
 	actions[UnsetRegionCommand] = func(args []string) (string, error) {
 		query := url.Values{}
-		query.Add(infra.RegionNameHeader, args[0])
+		query.Add(infra.RegionServerIDHeader, args[0])
 
 		err := makeHTTPRequest(unsetRegionResource, query, nil, http.DefaultClient, nil)
 		if err != nil {
@@ -181,14 +182,14 @@ func createActionMap(conf replConfig) map[string]action {
 	}
 	actions[HelpCommand] = func([]string) (string, error) {
 		return fmt.Sprint(
-			"\tPUSH <content_id> <server_id>\n",
-			"\tPURGE <content_id> <server_id>\n",
+			"\tPUSH <content_id> <region_id>\n",
+			"\tPURGE <content_id> <region_id>\n",
 			"\tSRULE <rule>\n",
 			"\tURULE <rule>\n",
 			"\tROUTE CLIENT <content_id>\n",
 			"\tROUTE ENDPOINT\n",
-			"\tALLOCATE <server_id> <available_bytes>\n",
-			"\tSREGION <region_id> <server_id>\n",
+			"\tALLOCATE <region_id> <available_bytes>\n",
+			"\tSREGION <region_id> <public_addr> <private_addr>\n",
 			"\tUREGION <region_id>\n",
 			"\tEXIT\n",
 		), nil

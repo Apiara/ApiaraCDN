@@ -68,5 +68,5 @@ func TestAESInternalDataAccessor(t *testing.T) {
 	if err = accessor.GetContent(contentURL, cryptKey, &buf); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "secret", string(buf.Bytes()), "Got wrong key")
+	assert.Equal(t, "secret", buf.String(), "Got wrong key")
 }

@@ -3,6 +3,7 @@ package deus
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -170,40 +171,36 @@ func (m *MasterContentManager) deleteProcessedContent(cid string) error {
 	return m.sendHTTPMessage(m.deleteDataAPIAddr, query.Encode())
 }
 
-func (m *MasterContentManager) publishContent(regionID string, edgeServerAddr string, functionlID string, size int64) error {
-	// Inform session server of new data to serve
+func (m *MasterContentManager) startServingAtEdge(edgeServerAddr string, functionalID string) error {
 	query := url.Values{}
-	query.Add(infra.ContentFunctionalIDHeader, functionlID)
-
+	query.Add(infra.ContentFunctionalIDHeader, functionalID)
 	serverAddResource, err := url.JoinPath(edgeServerAddr, infra.DamoclesServiceAPIAddResource)
 	if err != nil {
 		return err
 	}
-	err = m.sendHTTPMessage(serverAddResource, query.Encode())
-	if err != nil {
+	if err = m.sendHTTPMessage(serverAddResource, query.Encode()); err != nil {
 		return err
 	}
+	return nil
+}
 
+func (m *MasterContentManager) publishContentToAllocator(regionID string, functionalID string, size int64) error {
 	// Perform content publishing request to dataspace allocator
+	query := url.Values{}
+	query.Add(infra.ContentFunctionalIDHeader, functionalID)
 	query.Add(infra.ByteSizeHeader, strconv.FormatInt(size, 10))
 	query.Add(infra.RegionServerIDHeader, regionID)
-	err = m.sendHTTPMessage(m.publishDataAPIAddr, query.Encode())
-	if err != nil {
+	if err := m.sendHTTPMessage(m.publishDataAPIAddr, query.Encode()); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *MasterContentManager) stopServing(serverAddr string, cid string) error {
-	fid, err := m.state.GetContentFunctionalID(cid)
-	if err != nil {
-		return err
-	}
-
+func (m *MasterContentManager) stopServingAtEdge(serverAddr string, functionalID string) error {
 	// Send purge request to session server
 	query := url.Values{}
-	query.Add(infra.ContentFunctionalIDHeader, fid)
+	query.Add(infra.ContentFunctionalIDHeader, functionalID)
 
 	serverDelResource, err := url.JoinPath(serverAddr, infra.DamoclesServiceAPIDelResource)
 	if err != nil {
@@ -217,25 +214,34 @@ func (m *MasterContentManager) stopServing(serverAddr string, cid string) error 
 	return nil
 }
 
-func (m *MasterContentManager) unpublishContent(regionID string, cid string) error {
-	fid, err := m.state.GetContentFunctionalID(cid)
-	if err != nil {
-		return err
-	}
-
+func (m *MasterContentManager) unpublishContentFromAllocator(regionID string, functionalID string) error {
 	// Send purge request to allocation server
 	query := url.Values{}
-	query.Add(infra.ContentFunctionalIDHeader, fid)
+	query.Add(infra.ContentFunctionalIDHeader, functionalID)
 	query.Add(infra.RegionServerIDHeader, regionID)
-	err = m.sendHTTPMessage(m.unpublishDataAPIAddr, query.Encode())
-	if err != nil {
+	if err := m.sendHTTPMessage(m.unpublishDataAPIAddr, query.Encode()); err != nil {
 		return err
 	}
 	return nil
 }
 
+func performRollback(reversalOperations []func() error) {
+	// Perform rollback LIFO
+	for i := len(reversalOperations) - 1; i >= 0; i-- {
+		reverse := reversalOperations[i]
+		if err := reverse(); err != nil {
+			// Log errors, still attempt to perform every rollback operation
+			log.Printf("failed rollback operation: %s\n", err.Error())
+		}
+	}
+}
+
 // Serve attempts serve 'cid' on the network
 func (m *MasterContentManager) Serve(cid string, regionID string, dynamic bool) error {
+	/* Every time a operation is completed store the inverse
+	operation in case rollback needs to be performed */
+	rollbackOperations := make([]func() error, 0)
+
 	// Check if content has been processed yet
 	processed, err := m.state.IsContentBeingServed(cid)
 	if err != nil {
@@ -246,10 +252,14 @@ func (m *MasterContentManager) Serve(cid string, regionID string, dynamic bool) 
 	var functionalID string
 	var size int64
 	if !processed {
+		// Attempt content processing, update rollback operations
 		functionalID, size, err = m.processContent(cid)
 		if err != nil {
 			return err
 		}
+		rollbackOperations = append(rollbackOperations, func() error {
+			return m.deleteProcessedContent(cid)
+		})
 	} else {
 		functionalID, err = m.state.GetContentFunctionalID(cid)
 		if err != nil {
@@ -264,14 +274,34 @@ func (m *MasterContentManager) Serve(cid string, regionID string, dynamic bool) 
 	// Publish content to coordination infrastructure
 	serverAddr, err := m.state.GetServerPrivateAddress(regionID)
 	if err != nil {
-		return err
-	}
-	if err = m.publishContent(regionID, serverAddr, functionalID, size); err != nil {
+		performRollback(rollbackOperations)
 		return err
 	}
 
+	// Attempt updating allocator service, update rollback operation list
+	if err = m.publishContentToAllocator(regionID, functionalID, size); err != nil {
+		performRollback(rollbackOperations)
+		return err
+	}
+	rollbackOperations = append(rollbackOperations, func() error {
+		return m.unpublishContentFromAllocator(regionID, functionalID)
+	})
+
+	// Attempt updating edge server, update rollback operation list
+	if err = m.startServingAtEdge(serverAddr, functionalID); err != nil {
+		performRollback(rollbackOperations)
+		return err
+	}
+	rollbackOperations = append(rollbackOperations, func() error {
+		return m.stopServingAtEdge(serverAddr, functionalID)
+	})
+
 	// Update global state
-	return m.state.CreateContentLocationEntry(cid, regionID, dynamic)
+	if err = m.state.CreateContentLocationEntry(cid, regionID, dynamic); err != nil {
+		performRollback(rollbackOperations)
+		return err
+	}
+	return nil
 }
 
 /*
@@ -281,39 +311,66 @@ was performed dynamically since only a manual removal request can purge data
 that was manually pushed
 */
 func (m *MasterContentManager) Remove(cid string, regionID string, dynamic bool) error {
+	// Keep track of operations needed for rollback
+	rollbackOperations := make([]func() error, 0)
+
 	// Update state
 	dynamicallySet, err := m.state.WasContentPulled(cid, regionID)
 	if err != nil {
 		return err
 	}
+	serverAddr, err := m.state.GetServerPrivateAddress(regionID)
+	if err != nil {
+		return err
+	}
+	functionalID, err := m.state.GetContentFunctionalID(cid)
+	if err != nil {
+		return err
+	}
+	contentSize, err := m.state.GetContentSize(cid)
+	if err != nil {
+		return err
+	}
 
+	// Remove metadata location entry, update rollback operations
 	if dynamic && !dynamicallySet {
 		return fmt.Errorf("cannot dynamically remove %s from %s since it was manually pushed", cid, regionID)
 	}
 	if err := m.state.DeleteContentLocationEntry(cid, regionID); err != nil {
 		return err
 	}
+	rollbackOperations = append(rollbackOperations, func() error {
+		return m.state.CreateContentLocationEntry(cid, regionID, dynamicallySet)
+	})
 
-	// Purge from coordination infrastructure
-	serverAddr, err := m.state.GetServerPrivateAddress(regionID)
-	if err != nil {
+	// Purge from edge server, update rollback list
+	if err := m.stopServingAtEdge(serverAddr, functionalID); err != nil {
+		performRollback(rollbackOperations)
 		return err
 	}
-	if err := m.stopServing(serverAddr, cid); err != nil {
+	rollbackOperations = append(rollbackOperations, func() error {
+		return m.startServingAtEdge(serverAddr, functionalID)
+	})
+
+	// Purge from allocator service, update rollback list
+	if err := m.unpublishContentFromAllocator(regionID, functionalID); err != nil {
+		performRollback(rollbackOperations)
 		return err
 	}
-	if err := m.unpublishContent(regionID, cid); err != nil {
-		return err
-	}
+	rollbackOperations = append(rollbackOperations, func() error {
+		return m.publishContentToAllocator(regionID, functionalID, contentSize)
+	})
 
 	// Delete processed data if no longer being served anywhere on the network
 	inUse, err := m.state.IsContentBeingServed(cid)
 	if err != nil {
+		performRollback(rollbackOperations)
 		return err
 	}
 
 	if !inUse {
 		if err := m.deleteProcessedContent(cid); err != nil {
+			performRollback(rollbackOperations)
 			return err
 		}
 	}

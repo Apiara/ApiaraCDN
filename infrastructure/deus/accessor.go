@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 
@@ -76,7 +75,7 @@ func (d *aesInternalDataAccessor) GetKey(cid string) ([]byte, error) {
 // GetContent writes the internal content at 'url' decrypted with 'key' to 'out'
 func (d *aesInternalDataAccessor) GetContent(url string, key []byte, out io.Writer) error {
 	// Download content
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		return fmt.Errorf("Failed to open temp file for %s download: %w", url, err)
 	}
