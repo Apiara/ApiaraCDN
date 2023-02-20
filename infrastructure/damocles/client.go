@@ -53,11 +53,11 @@ func (c *NeedClientServicer) MatchAndSignal(client Websocket) error {
 	// Receive content request
 	_, data, err := client.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("Failed to read client message: %w", err)
+		return fmt.Errorf("failed to read client message: %w", err)
 	}
 	req := clientRequest{}
 	if err = json.Unmarshal(data, &req); err != nil {
-		return fmt.Errorf("Failed to unmarshal client message: %w", err)
+		return fmt.Errorf("failed to unmarshal client message: %w", err)
 	}
 	id := req.FunctionalID
 	c.tracker.AddRequest(id)
@@ -73,7 +73,7 @@ func (c *NeedClientServicer) MatchAndSignal(client Websocket) error {
 			client.WriteMessage(websocket.TextMessage, data)
 		}
 		client.Close()
-		return fmt.Errorf("Failed to retrieve endpoint for client: %w", err)
+		return fmt.Errorf("failed to retrieve endpoint for client: %w", err)
 	}
 
 	// Send signaling start message to both client and endpoint
@@ -82,17 +82,17 @@ func (c *NeedClientServicer) MatchAndSignal(client Websocket) error {
 	if err != nil {
 		client.Close()
 		endpoint.Close()
-		return fmt.Errorf("Failed to marshal signal start response: %w", err)
+		return fmt.Errorf("failed to marshal signal start response: %w", err)
 	}
 	if err = client.WriteMessage(websocket.TextMessage, data); err != nil {
 		client.Close()
 		endpoint.Close()
-		return fmt.Errorf("Failed to send message to client: %w", err)
+		return fmt.Errorf("failed to send message to client: %w", err)
 	}
 	if err = endpoint.WriteMessage(websocket.TextMessage, data); err != nil {
 		client.Close()
 		endpoint.Close()
-		return fmt.Errorf("Failed to send message to endpoint: %w", err)
+		return fmt.Errorf("failed to send message to endpoint: %w", err)
 	}
 
 	// Start signaling session

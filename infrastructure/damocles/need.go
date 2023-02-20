@@ -70,7 +70,7 @@ func (d *DesperationTracker) GetScore(id string) (int64, error) {
 	d.reset()
 	score, exist := d.desperation[id]
 	if !exist {
-		return -1, fmt.Errorf("No score for id %s", id)
+		return -1, fmt.Errorf("no score for id %s", id)
 	}
 	return score, nil
 }
@@ -81,7 +81,7 @@ func (d *DesperationTracker) CreateCategory(id string) error {
 	defer d.mutex.Unlock()
 
 	if _, exist := d.desperation[id]; exist {
-		return fmt.Errorf("Tracker category for %s already exists. Cannot create", id)
+		return fmt.Errorf("tracker category for %s already exists. cannot create", id)
 	}
 	d.desperation[id] = 0
 	return nil
@@ -93,7 +93,7 @@ func (d *DesperationTracker) DelCategory(id string) error {
 	defer d.mutex.Unlock()
 
 	if _, exist := d.desperation[id]; !exist {
-		return fmt.Errorf("Tracker failed to remove category %s. Doesn't exist", id)
+		return fmt.Errorf("tracker failed to remove category %s. doesn't exist", id)
 	}
 	delete(d.desperation, id)
 	return nil
@@ -107,7 +107,7 @@ func (d *DesperationTracker) AddRequest(id string) error {
 	d.reset()
 	val, exist := d.desperation[id]
 	if !exist {
-		return fmt.Errorf("Failed to add request for %s. Tracker id doesn't exist", id)
+		return fmt.Errorf("failed to add request for %s. tracker id doesn't exist", id)
 	}
 	d.desperation[id] = val + 1
 	return nil
@@ -121,7 +121,7 @@ func (d *DesperationTracker) AddAllocation(id string) error {
 	d.reset()
 	val, exist := d.desperation[id]
 	if !exist {
-		return fmt.Errorf("Failed to track allocation for %s. Tracker id doesn't exist", id)
+		return fmt.Errorf("failed to track allocation for %s. tracker id doesn't exist", id)
 	}
 	d.desperation[id] = val - 1
 	return nil

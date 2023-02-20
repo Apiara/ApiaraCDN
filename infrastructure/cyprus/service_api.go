@@ -54,14 +54,14 @@ func StartDataProcessingAPI(listenAddr string, preprocessor DataPreprocessor,
 	// Start a new processing job
 	processingAPI.HandleFunc(infra.CyprusServiceAPIProcessResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			cid := req.URL.Query().Get(infra.ContentIDHeader)
+			cid := req.URL.Query().Get(infra.ContentIDParam)
 			go handleProcessRequest(cid, preprocessor, processor, storage, tracker)
 		})
 
 	// Check status of a processing job and retrieve results
 	processingAPI.HandleFunc(infra.CyprusServiceAPIStatusResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			cid := req.URL.Query().Get(infra.ContentIDHeader)
+			cid := req.URL.Query().Get(infra.ContentIDParam)
 			status, err := tracker.status(cid)
 			if err != nil {
 				log.Println(err)
@@ -80,10 +80,8 @@ func StartDataProcessingAPI(listenAddr string, preprocessor DataPreprocessor,
 				}
 				response.Metadata = metadata
 				tracker.free(cid)
-				break
 			case infra.FailedProcessing:
 				tracker.free(cid)
-				break
 			}
 
 			if err = json.NewEncoder(resp).Encode(&response); err != nil {
@@ -95,7 +93,7 @@ func StartDataProcessingAPI(listenAddr string, preprocessor DataPreprocessor,
 	// Delete published resources associated with passed in content id
 	processingAPI.HandleFunc(infra.CyprusServiceAPIDeleteResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			cid := req.URL.Query().Get(infra.ContentIDHeader)
+			cid := req.URL.Query().Get(infra.ContentIDParam)
 			if err := storage.PurgeByURL(cid); err != nil {
 				log.Println(err)
 				resp.WriteHeader(http.StatusInternalServerError)

@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	// conflictErr is returned when a client and endpoint report can't be reconciled
-	conflictErr error = fmt.Errorf("failed due to conflicting session reports")
+	// errConflict is returned when a client and endpoint report can't be reconciled
+	errConflict error = fmt.Errorf("failed due to conflicting session reports")
 )
 
 // Report represents a session report from a client or endpoint

@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -51,7 +50,7 @@ type AESDataProcessor struct {
 // NewAESDataProcessor creates a new AESDataProcessor with the specified key size
 func NewAESDataProcessor(keySize int, workingDir string) (*AESDataProcessor, error) {
 	if keySize != 16 && keySize != 24 && keySize != 32 {
-		return nil, fmt.Errorf("Failed to create AESDataProcessor. Invalid Key Size %d", keySize)
+		return nil, fmt.Errorf("failed to create AESDataProcessor. invalid key size %d", keySize)
 	}
 	return &AESDataProcessor{
 		keySize:   keySize,
@@ -108,7 +107,7 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
 	}
 
 	// Create encrypted file, prepend initialization vector
-	outFile, err := ioutil.TempFile(a.outputDir, digestFilePattern)
+	outFile, err := os.CreateTemp(a.outputDir, digestFilePattern)
 	if err != nil {
 		return "", "", -1, err
 	}
@@ -116,7 +115,7 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
 	_, err = outFile.Write(iv)
 	if err != nil {
 		outFile.Close()
-		return "", "", -1, fmt.Errorf("Failed to prepend initialization vector to digest: %w", err)
+		return "", "", -1, fmt.Errorf("failed to prepend initialization vector to digest: %w", err)
 	}
 
 	// Encrypt segment using block+iv in CTR mode and write digest
@@ -126,13 +125,13 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
 	plainFile, err := os.Open(fname)
 	if err != nil {
 		outFile.Close()
-		return "", "", -1, fmt.Errorf("Failed to open ingest file %s: %w", fname, err)
+		return "", "", -1, fmt.Errorf("failed to open ingest file %s: %w", fname, err)
 	}
 
 	if _, err = io.Copy(cryptWriter, plainFile); err != nil {
 		outFile.Close()
 		plainFile.Close()
-		return "", "", -1, fmt.Errorf("Failed to write encrypted data: %w", err)
+		return "", "", -1, fmt.Errorf("failed to write encrypted data: %w", err)
 	}
 	outFile.Close()
 	plainFile.Close()
@@ -140,13 +139,13 @@ func (a *AESDataProcessor) digestFile(block cipher.Block, fname string) (string,
 	// Calculate checksum
 	checksum, err := CalculateSHA256Checksum(outFile.Name())
 	if err != nil {
-		return "", "", -1, fmt.Errorf("Failed to calculate checksum for file %s: %w", outFile.Name(), err)
+		return "", "", -1, fmt.Errorf("failed to calculate checksum for file %s: %w", outFile.Name(), err)
 	}
 
 	// Get file size
 	info, err := os.Stat(outFile.Name())
 	if err != nil {
-		return "", "", -1, fmt.Errorf("Failed to get size of file %s: %w", outFile.Name(), err)
+		return "", "", -1, fmt.Errorf("failed to get size of file %s: %w", outFile.Name(), err)
 	}
 
 	return outFile.Name(), base64.StdEncoding.EncodeToString(checksum), info.Size(), nil
@@ -214,13 +213,13 @@ func (a *AESDataProcessor) DigestMedia(ingest MediaIngest) (MediaDigest, error) 
 	// Randomly generate cryptographically secure 256-bit key and initialization vector
 	aesKey, err := generateRandomBytes(a.keySize)
 	if err != nil {
-		return MediaDigest{}, fmt.Errorf("Failed to generate symmetric key of size %d: %w", a.keySize, err)
+		return MediaDigest{}, fmt.Errorf("failed to generate symmetric key of size %d: %w", a.keySize, err)
 	}
 
 	// Create stream cipher
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
-		return MediaDigest{}, fmt.Errorf("Failed to generate cipher block: %w", err)
+		return MediaDigest{}, fmt.Errorf("failed to generate cipher block: %w", err)
 	}
 
 	// Delegate processing and create digest
@@ -229,23 +228,21 @@ func (a *AESDataProcessor) DigestMedia(ingest MediaIngest) (MediaDigest, error) 
 	case RawMediaType:
 		media, size, err := a.digestRawMedia(block, ingest.Result.(RawMedia))
 		if err != nil {
-			return MediaDigest{}, fmt.Errorf("Failed to digest raw media file: %w", err)
+			return MediaDigest{}, fmt.Errorf("failed to digest raw media file: %w", err)
 		}
 		digest.Result = media
 		digest.FunctionalID = media.FunctionalID
 		digest.ByteSize = size
-		break
 	case VODMediaType:
 		mediaMap, size, err := a.digestManifest(block, ingest.Result.(VODManifest))
 		if err != nil {
-			return MediaDigest{}, fmt.Errorf("Failed to digest manifest: %w", err)
+			return MediaDigest{}, fmt.Errorf("failed to digest manifest: %w", err)
 		}
 		digest.Result = mediaMap
 		digest.FunctionalID = mediaMap.FunctionalID
 		digest.ByteSize = size
-		break
 	default:
-		return MediaDigest{}, fmt.Errorf("Invalid ingest type: %w", err)
+		return MediaDigest{}, fmt.Errorf("invalid ingest type: %w", err)
 	}
 
 	return digest, nil

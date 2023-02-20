@@ -14,6 +14,7 @@ import (
 /*
 Configuration Format
 --------------------
+debugging_mode = bool
 override_listen_port = int
 route_listen_port = int
 mmdb_geo_file = string
@@ -30,7 +31,8 @@ state_address = string
 */
 
 type (
-	deusConfig struct {
+	amadaConfig struct {
+		DebuggingMode         bool   `toml:"debugging_mode"`
 		OverrideListenPort    int    `toml:"override_listen_port"`
 		RouteListenPort       int    `toml:"route_listen_port"`
 		MaxMindGeoFile        string `toml:"mmdb_geo_file"`
@@ -52,7 +54,7 @@ func main() {
 	fnamePtr := flag.String("config", "", "TOML configuration file")
 	flag.Parse()
 
-	var conf deusConfig
+	var conf amadaConfig
 	if err := config.ReadTOMLConfig(*fnamePtr, &conf); err != nil {
 		panic(err)
 	}
@@ -83,9 +85,15 @@ func main() {
 		panic(err)
 	}
 
+	// Modify used IP extraction method based on if in production vs debugging mode
+	var extractor amada.RequestIPExtractor = amada.ExtractRequestIP
+	if conf.DebuggingMode {
+		extractor = amada.DebuggingExtractRequestIP
+	}
+
 	// Start APIs
 	log.SetOutput(os.Stdout)
 	go amada.StartServiceAPI(overrideListenAddr, microserviceState, geoFinder)
-	amada.StartDeviceRoutingAPI(routeListenAddr, geoFinder, microserviceState,
+	amada.StartDeviceRoutingAPI(routeListenAddr, extractor, geoFinder, microserviceState,
 		microserviceState, conf.PullDeciderAPIAddress)
 }

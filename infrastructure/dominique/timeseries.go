@@ -108,7 +108,7 @@ func (m *mockTimeseriesDB) ReadSessionReports(sid string, start time.Time, end t
 		}
 		return *(reps[0].(*ClientReport)), *(reps[1].(*EndpointReport)), nil
 	}
-	return ClientReport{}, EndpointReport{}, fmt.Errorf("Failed to find session reports")
+	return ClientReport{}, EndpointReport{}, fmt.Errorf("failed to find session reports")
 }
 
 func (m *mockTimeseriesDB) ReadEndpointSessions(string, time.Time, time.Time) ([]SessionDescription, error) {
@@ -152,7 +152,7 @@ func NewInfluxTimeseriesDB(dbURL, dbToken string, finder state.ContentMetadataSt
 func (ts *InfluxTimeseriesDB) WriteDescription(desc SessionDescription, t time.Time) error {
 	url, err := ts.finder.GetContentID(desc.FunctionalID)
 	if err != nil {
-		return fmt.Errorf("Failed to associate functional id with url %s: %w", desc.FunctionalID, err)
+		return fmt.Errorf("failed to associate functional id with url %s: %w", desc.FunctionalID, err)
 	}
 
 	tags := map[string]string{
@@ -171,7 +171,7 @@ func (ts *InfluxTimeseriesDB) WriteDescription(desc SessionDescription, t time.T
 
 	entry := influxdb2.NewPoint("session", tags, fields, t.UTC())
 	if err := ts.sessionsWriter.WritePoint(ts.sessionsCtx, entry); err != nil {
-		return fmt.Errorf("Failed to write session entry: %w", err)
+		return fmt.Errorf("failed to write session entry: %w", err)
 	}
 	return nil
 }
@@ -180,7 +180,7 @@ func (ts *InfluxTimeseriesDB) WriteDescription(desc SessionDescription, t time.T
 func (ts *InfluxTimeseriesDB) WriteReport(r Report, t time.Time) error {
 	url, err := ts.finder.GetContentID(r.GetFunctionalID())
 	if err != nil {
-		return fmt.Errorf("Failed to associate functional id with url %s: %w", r.GetFunctionalID(), err)
+		return fmt.Errorf("failed to associate functional id with url %s: %w", r.GetFunctionalID(), err)
 	}
 
 	tags := map[string]string{
@@ -198,7 +198,6 @@ func (ts *InfluxTimeseriesDB) WriteReport(r Report, t time.Time) error {
 		measureType = clientReportMeasure
 		fields[bytesRecvField] = report.BytesRecv
 		fields[bytesNeededField] = report.BytesNeeded
-		break
 	case *EndpointReport:
 		measureType = endpointReportMeasure
 		fields[bytesServedField] = report.BytesServed
@@ -207,7 +206,7 @@ func (ts *InfluxTimeseriesDB) WriteReport(r Report, t time.Time) error {
 
 	entry := influxdb2.NewPoint(measureType, tags, fields, t.UTC())
 	if err := ts.reportsWriter.WritePoint(ts.reportsCtx, entry); err != nil {
-		return fmt.Errorf("Failed to write report entry: %w", err)
+		return fmt.Errorf("failed to write report entry: %w", err)
 	}
 	return nil
 }
@@ -216,7 +215,7 @@ func (ts *InfluxTimeseriesDB) readReports(query string) ([]Report, error) {
 	// Make Query
 	result, err := ts.dbReader.Query(context.Background(), query)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read report range: %w", err)
+		return nil, fmt.Errorf("failed to read report range: %w", err)
 	}
 
 	// Consolidate report entry values
@@ -256,7 +255,6 @@ func (ts *InfluxTimeseriesDB) readReports(query string) ([]Report, error) {
 				BytesRecv:    reportValues[bytesRecvField].(int64),
 				BytesNeeded:  reportValues[bytesNeededField].(int64),
 			}
-			break
 		case endpointReportMeasure:
 			report = &EndpointReport{
 				SessionID:    reportValues[sessionIDTag].(string),
@@ -277,7 +275,7 @@ func (ts *InfluxTimeseriesDB) readSessions(query string) ([]SessionDescription, 
 	// Make Query
 	result, err := ts.dbReader.Query(context.Background(), query)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read report range: %w", err)
+		return nil, fmt.Errorf("failed to read report range: %w", err)
 	}
 
 	// Consolidate session entry values
@@ -341,7 +339,7 @@ func (ts *InfluxTimeseriesDB) ReadSessionReports(sid string, start time.Time, en
 	if err != nil {
 		return ClientReport{}, EndpointReport{}, err
 	} else if len(reports) != 2 {
-		return ClientReport{}, EndpointReport{}, fmt.Errorf("Invalid number of session reports: %d", len(reports))
+		return ClientReport{}, EndpointReport{}, fmt.Errorf("invalid number of session reports: %d", len(reports))
 	}
 
 	// Return reports
@@ -351,7 +349,6 @@ func (ts *InfluxTimeseriesDB) ReadSessionReports(sid string, start time.Time, en
 	case *ClientReport:
 		clientReport = report
 		endpointReport = reports[1].(*EndpointReport)
-		break
 	case *EndpointReport:
 		clientReport = reports[1].(*ClientReport)
 		endpointReport = report

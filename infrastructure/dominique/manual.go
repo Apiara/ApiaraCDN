@@ -63,10 +63,10 @@ func NewPostgresRemediationQueue(host string, port int, user string,
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open postgres remediation queue: %w", err)
+		return nil, fmt.Errorf("failed to open postgres remediation queue: %w", err)
 	}
 	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("Failed to open postgres remediation queue: %w", err)
+		return nil, fmt.Errorf("failed to open postgres remediation queue: %w", err)
 	}
 
 	return &PostgresRemediationQueue{db}, nil
@@ -82,7 +82,7 @@ func (p *PostgresRemediationQueue) Write(client ClientReport, endpoint EndpointR
 		endpoint.IP, endpoint.Identity, client.BytesRecv, client.BytesNeeded, endpoint.BytesServed)
 
 	if err != nil {
-		return fmt.Errorf("Failed to queue reports for remediation: %w", err)
+		return fmt.Errorf("failed to queue reports for remediation: %w", err)
 	}
 	return nil
 }

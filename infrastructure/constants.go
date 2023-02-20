@@ -1,17 +1,23 @@
 package infrastructure
 
+// Standard query names for service API usage
 const (
-	RegionServerIDHeader    = "server_id"
-	ServerPublicAddrHeader  = "server_public"
-	ServerPrivateAddrHeader = "server_private"
+	RegionServerIDParam    = "server_id"
+	ServerPublicAddrParam  = "server_public"
+	ServerPrivateAddrParam = "server_private"
 
-	ContentIDHeader           = "content_id"
-	ContentFunctionalIDHeader = "functional_id"
-	ByteSizeHeader            = "bytes"
+	ContentIDParam           = "content_id"
+	ContentFunctionalIDParam = "functional_id"
+	ContentByteSizeParam     = "bytes"
 
-	MMDBFileNameHeader = "mmdb"
+	MMDBFileNameParam = "mmdb"
 
-	ContentRuleHeader = "content_rule"
+	ContentRuleParam = "content_rule"
+)
+
+// Query names for services in Debugging/Testing mode
+const (
+	DebugModeForcedRequestIPParam = "debugging_ip"
 )
 
 // Status type for a cyprus data processing job

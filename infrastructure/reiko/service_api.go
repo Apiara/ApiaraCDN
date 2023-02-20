@@ -17,7 +17,7 @@ func StartServiceAPI(listenAddr string, ruleset ContentRules) {
 	// Validate content
 	serviceAPI.HandleFunc(infra.ReikoServiceAPIValidateResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			cid := req.URL.Query().Get(infra.ContentIDHeader)
+			cid := req.URL.Query().Get(infra.ContentIDParam)
 
 			matchFound, err := ruleset.DoesContentMatchRule(cid)
 			if err != nil {
@@ -35,7 +35,7 @@ func StartServiceAPI(listenAddr string, ruleset ContentRules) {
 	// Set content rule
 	serviceAPI.HandleFunc(infra.ReikoServiceAPIAddRuleResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			rule := req.URL.Query().Get(infra.ContentRuleHeader)
+			rule := req.URL.Query().Get(infra.ContentRuleParam)
 
 			if err := ruleset.CreateContentPullRule(rule); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
@@ -46,7 +46,7 @@ func StartServiceAPI(listenAddr string, ruleset ContentRules) {
 	// Remove content rule
 	serviceAPI.HandleFunc(infra.ReikoServiceAPIDelRuleResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			rule := req.URL.Query().Get(infra.ContentRuleHeader)
+			rule := req.URL.Query().Get(infra.ContentRuleParam)
 
 			if err := ruleset.DeleteContentPullRule(rule); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)

@@ -45,7 +45,7 @@ func (j *jobTracker) updateStatus(id string, status infra.ProcessingStatus) erro
 		foundJob.status = status
 		return nil
 	}
-	return fmt.Errorf("No job with id %s", id)
+	return fmt.Errorf("no job with id %s", id)
 }
 
 func (j *jobTracker) updateResult(id string, result *infra.PostProcessingMetadata) error {
@@ -56,7 +56,7 @@ func (j *jobTracker) updateResult(id string, result *infra.PostProcessingMetadat
 		foundJob.result = result
 		return nil
 	}
-	return fmt.Errorf("No job with id %s", id)
+	return fmt.Errorf("no job with id %s", id)
 }
 
 func (j *jobTracker) free(id string) {
@@ -72,7 +72,7 @@ func (j *jobTracker) status(id string) (infra.ProcessingStatus, error) {
 	if job, ok := j.jobs[id]; ok {
 		return job.status, nil
 	}
-	return "", fmt.Errorf("No job with ID %s", id)
+	return "", fmt.Errorf("no job with ID %s", id)
 }
 
 func (j *jobTracker) result(id string) (*infra.PostProcessingMetadata, error) {
@@ -82,5 +82,5 @@ func (j *jobTracker) result(id string) (*infra.PostProcessingMetadata, error) {
 	if job, ok := j.jobs[id]; ok {
 		return job.result, nil
 	}
-	return nil, fmt.Errorf("No job with ID %s", id)
+	return nil, fmt.Errorf("no job with ID %s", id)
 }

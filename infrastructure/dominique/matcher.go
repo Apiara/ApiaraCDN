@@ -92,13 +92,13 @@ func NewTimedSessionProcessor(timeout time.Duration, timeseries TimeseriesDBWrit
 func createSessionDescription(client ClientReport,
 	endpoint EndpointReport) (SessionDescription, error) {
 	if client.SessionID != endpoint.SessionID {
-		return SessionDescription{}, conflictErr
+		return SessionDescription{}, errConflict
 	}
 	if client.FunctionalID != endpoint.FunctionalID {
-		return SessionDescription{}, conflictErr
+		return SessionDescription{}, errConflict
 	}
 	if client.BytesRecv != endpoint.BytesServed {
-		return SessionDescription{}, conflictErr
+		return SessionDescription{}, errConflict
 	}
 
 	desc := SessionDescription{
@@ -116,7 +116,7 @@ func createSessionDescription(client ClientReport,
 
 func (t *TimedSessionProcessor) ingestSessionEntry(entry *processorEntry) error {
 	desc, err := createSessionDescription(*entry.clientReport, *entry.endpointReport)
-	if err == conflictErr {
+	if err == errConflict {
 		if tErr := t.timeseries.WriteReport(entry.clientReport, entry.firstSeen); tErr != nil {
 			return tErr
 		}
@@ -125,7 +125,7 @@ func (t *TimedSessionProcessor) ingestSessionEntry(entry *processorEntry) error 
 		}
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Failed to create session description: %w", err)
+		return fmt.Errorf("failed to create session description: %w", err)
 	}
 	return t.timeseries.WriteDescription(desc, entry.firstSeen)
 }
@@ -151,7 +151,6 @@ func (t *TimedSessionProcessor) AddReport(r Report) error {
 	switch report := r.(type) {
 	case *ClientReport:
 		entry.clientReport = report
-		break
 	case *EndpointReport:
 		entry.endpointReport = report
 	}
@@ -162,7 +161,7 @@ func (t *TimedSessionProcessor) AddReport(r Report) error {
 			/* If fails, will get picked up again by the scheduled
 			   collectUnmatchedReports routine for a second try at processing
 			   before throwing the entry away for good*/
-			return fmt.Errorf("Failed to process session reports: %w", err)
+			return fmt.Errorf("failed to process session reports: %w", err)
 		}
 		delete(t.activeSessions, sid)
 	}

@@ -43,16 +43,16 @@ func (d *aesInternalDataAccessor) GetMetadata(cid string, mdata interface{}) err
 	safeCid := infra.URLToSafeName(cid)
 	mapURL, err := url.JoinPath(d.metadataBaseURL, safeCid)
 	if err != nil {
-		return fmt.Errorf("Failed to create %s metadata download path: %w", cid, err)
+		return fmt.Errorf("failed to create %s metadata download path: %w", cid, err)
 	}
 
 	var mapBuf bytes.Buffer
 	if err = d.retrieveFile(mapURL, &mapBuf); err != nil {
-		return fmt.Errorf("Failed to download %s metadata: %w", cid, err)
+		return fmt.Errorf("failed to download %s metadata: %w", cid, err)
 	}
 
 	if json.Unmarshal(mapBuf.Bytes(), mdata); err != nil {
-		return fmt.Errorf("Failed to unmarshal %s metadata: %w", cid, err)
+		return fmt.Errorf("failed to unmarshal %s metadata: %w", cid, err)
 	}
 	return nil
 }
@@ -62,12 +62,12 @@ func (d *aesInternalDataAccessor) GetKey(cid string) ([]byte, error) {
 	safeCid := infra.URLToSafeName(cid)
 	keyURL, err := url.JoinPath(d.keyBaseURL, safeCid)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create %s key URL: %w", cid, err)
+		return nil, fmt.Errorf("failed to create %s key URL: %w", cid, err)
 	}
 
 	var cryptKey bytes.Buffer
 	if err = d.retrieveFile(keyURL, &cryptKey); err != nil {
-		return nil, fmt.Errorf("Failed to download %s key: %w", cid, err)
+		return nil, fmt.Errorf("failed to download %s key: %w", cid, err)
 	}
 	return cryptKey.Bytes(), nil
 }
@@ -77,39 +77,39 @@ func (d *aesInternalDataAccessor) GetContent(url string, key []byte, out io.Writ
 	// Download content
 	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
-		return fmt.Errorf("Failed to open temp file for %s download: %w", url, err)
+		return fmt.Errorf("failed to open temp file for %s download: %w", url, err)
 	}
 	defer os.Remove(file.Name())
 
 	if err = d.retrieveFile(url, file); err != nil {
-		return fmt.Errorf("Failed to download file %s: %w", url, err)
+		return fmt.Errorf("failed to download file %s: %w", url, err)
 	}
 	file.Close()
 
 	// Setup cipher block
 	file, err = os.Open(file.Name())
 	if err != nil {
-		return fmt.Errorf("Failed to open downloaded %s file: %w", url, err)
+		return fmt.Errorf("failed to open downloaded %s file: %w", url, err)
 	}
 	defer file.Close()
 
 	cipherBlock, err := aes.NewCipher(key)
 	if err != nil {
-		return fmt.Errorf("Failed to create block cipher from %s key: %w", url, err)
+		return fmt.Errorf("failed to create block cipher from %s key: %w", url, err)
 	}
 
 	// Retrieve initialization vector
 	iv := make([]byte, aes.BlockSize)
 	_, err = file.Read(iv)
 	if err != nil {
-		return fmt.Errorf("Failed to extract IV from %s: %w", url, err)
+		return fmt.Errorf("failed to extract IV from %s: %w", url, err)
 	}
 
 	// Decrypt data
 	streamCipher := cipher.NewCTR(cipherBlock, iv)
 	cryptWriter := &cipher.StreamWriter{S: streamCipher, W: out}
 	if _, err = io.Copy(cryptWriter, file); err != nil {
-		return fmt.Errorf("Failed to decrypt %s: %w", url, err)
+		return fmt.Errorf("failed to decrypt %s: %w", url, err)
 	}
 	return nil
 }

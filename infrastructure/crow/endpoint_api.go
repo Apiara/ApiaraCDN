@@ -20,8 +20,8 @@ be allocated data to serve on the network
 func StartDataAllocatorAPI(listenAddr string, allocator LocationAwareDataAllocator) {
 	allocateAPI := http.NewServeMux()
 	allocateAPI.HandleFunc(infra.CrowAllocateAPIResource, func(resp http.ResponseWriter, req *http.Request) {
-		regionID := req.URL.Query().Get(infra.RegionServerIDHeader)
-		bytesStr := req.URL.Query().Get(infra.ByteSizeHeader)
+		regionID := req.URL.Query().Get(infra.RegionServerIDParam)
+		bytesStr := req.URL.Query().Get(infra.ContentByteSizeParam)
 		availableSpace, err := strconv.ParseInt(bytesStr, 10, 64)
 		if err != nil {
 			log.Println(err)

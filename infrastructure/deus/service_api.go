@@ -57,8 +57,8 @@ func StartServiceAPI(listenAddr string, checker DataValidator, state ManagerMicr
 	// Push allows manually pushing of data onto the network
 	serviceAPI.HandleFunc(infra.DeusServiceAPIPushResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			serverID := req.URL.Query().Get(infra.RegionServerIDHeader)
+			cid := req.URL.Query().Get(infra.ContentIDParam)
+			serverID := req.URL.Query().Get(infra.RegionServerIDParam)
 
 			manager.Lock()
 			defer manager.Unlock()
@@ -71,8 +71,8 @@ func StartServiceAPI(listenAddr string, checker DataValidator, state ManagerMicr
 	// Purge allows manually purging of data from the network
 	serviceAPI.HandleFunc(infra.DeusServiceAPIPurgeResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			serverID := req.URL.Query().Get(infra.RegionServerIDHeader)
+			cid := req.URL.Query().Get(infra.ContentIDParam)
+			serverID := req.URL.Query().Get(infra.RegionServerIDParam)
 
 			manager.Lock()
 			defer manager.Unlock()
@@ -85,15 +85,15 @@ func StartServiceAPI(listenAddr string, checker DataValidator, state ManagerMicr
 	// Stale Report invokes a check+remediation if the stated content is in a stale state
 	serviceAPI.HandleFunc(infra.DeusServiceAPIStaleReportResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			cid := req.URL.Query().Get(infra.ContentIDHeader)
+			cid := req.URL.Query().Get(infra.ContentIDParam)
 			go handleStaleReport(cid, checker, state, manager)
 		})
 
 	// Decider update update the pull decider with a new request
 	serviceAPI.HandleFunc(infra.DeusServiceAPIPullDeciderResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			cid := req.URL.Query().Get(infra.ContentIDHeader)
-			serverID := req.URL.Query().Get(infra.RegionServerIDHeader)
+			cid := req.URL.Query().Get(infra.ContentIDParam)
+			serverID := req.URL.Query().Get(infra.RegionServerIDParam)
 			if err := decider.NewRequest(cid, serverID); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				log.Println(err)

@@ -17,9 +17,9 @@ func StartServiceAPI(listenAddr string, allocator LocationAwareDataAllocator) {
 	serviceAPI := http.NewServeMux()
 
 	serviceAPI.HandleFunc(infra.CrowServiceAPIPublishResource, func(resp http.ResponseWriter, req *http.Request) {
-		location := req.URL.Query().Get(infra.RegionServerIDHeader)
-		fid := req.URL.Query().Get(infra.ContentFunctionalIDHeader)
-		sizeStr := req.URL.Query().Get(infra.ByteSizeHeader)
+		location := req.URL.Query().Get(infra.RegionServerIDParam)
+		fid := req.URL.Query().Get(infra.ContentFunctionalIDParam)
+		sizeStr := req.URL.Query().Get(infra.ContentByteSizeParam)
 
 		byteSize, err := strconv.ParseInt(sizeStr, 10, 64)
 		if err != nil {
@@ -34,8 +34,8 @@ func StartServiceAPI(listenAddr string, allocator LocationAwareDataAllocator) {
 		}
 	})
 	serviceAPI.HandleFunc(infra.CrowServiceAPIPurgeResource, func(resp http.ResponseWriter, req *http.Request) {
-		region := req.URL.Query().Get(infra.RegionServerIDHeader)
-		fid := req.URL.Query().Get(infra.ContentFunctionalIDHeader)
+		region := req.URL.Query().Get(infra.RegionServerIDParam)
+		fid := req.URL.Query().Get(infra.ContentFunctionalIDParam)
 
 		if err := allocator.DelEntry(region, fid); err != nil {
 			log.Println(err)

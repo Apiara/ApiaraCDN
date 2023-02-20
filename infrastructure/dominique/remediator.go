@@ -41,7 +41,7 @@ func NewByteOffsetRemediator(offsetAllowed int64) *ByteOffsetRemediator {
 func (r *ByteOffsetRemediator) Reconcile(client ClientReport, endpoint EndpointReport) (SessionDescription, error) {
 	// Check for unreconcilable conflicts
 	if client.SessionID != endpoint.SessionID || client.FunctionalID != endpoint.FunctionalID {
-		return SessionDescription{}, conflictErr
+		return SessionDescription{}, errConflict
 	}
 
 	// Check if byte offset is within acceptable range
@@ -50,7 +50,7 @@ func (r *ByteOffsetRemediator) Reconcile(client ClientReport, endpoint EndpointR
 		byteOffset *= -1
 	}
 	if byteOffset > r.offsetAllowed {
-		return SessionDescription{}, conflictErr
+		return SessionDescription{}, errConflict
 	}
 
 	// Return description with endpoint.BytesServed

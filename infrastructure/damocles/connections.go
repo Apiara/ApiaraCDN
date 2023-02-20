@@ -53,7 +53,7 @@ func (c *connectionList) getOldestActiveConnection() (Websocket, error) {
 		}
 	}
 	c.list = make([]Websocket, 0)
-	return nil, fmt.Errorf("No active connections")
+	return nil, fmt.Errorf("no active connections")
 }
 
 // EndpointConnectionManager implements ConnectionManager using connectionLists
@@ -76,7 +76,7 @@ func (m *EndpointConnectionManager) CreateCategory(id string) error {
 	defer m.mutex.Unlock()
 
 	if _, exists := m.servers[id]; exists {
-		return fmt.Errorf("Failed to add connection category %s. Already exists", id)
+		return fmt.Errorf("failed to add connection category %s. Already exists", id)
 	}
 	m.servers[id] = &connectionList{
 		mutex: &sync.Mutex{},
@@ -92,7 +92,7 @@ func (m *EndpointConnectionManager) DelCategory(id string) error {
 	defer m.mutex.Unlock()
 
 	if _, exists := m.servers[id]; !exists {
-		return fmt.Errorf("Failed to remove connection category %s. Doesn't exist", id)
+		return fmt.Errorf("failed to remove connection category %s. Doesn't exist", id)
 	}
 	delete(m.servers, id)
 
@@ -105,7 +105,7 @@ func (m *EndpointConnectionManager) Put(id string, conn Websocket) error {
 	connections, exists := m.servers[id]
 	m.mutex.RUnlock()
 	if !exists {
-		return fmt.Errorf("Failed to add connection to %s. Category %s does not exist", id, id)
+		return fmt.Errorf("failed to add connection to %s. Category %s does not exist", id, id)
 	}
 
 	connections.addConnection(conn)
@@ -118,7 +118,7 @@ func (m *EndpointConnectionManager) Pop(id string) (Websocket, error) {
 	connections, exists := m.servers[id]
 	m.mutex.RUnlock()
 	if !exists {
-		return nil, fmt.Errorf("Failed to pop connections from %s. Category %s doesn't exist", id, id)
+		return nil, fmt.Errorf("failed to pop connections from %s. category %s doesn't exist", id, id)
 	}
 
 	return connections.getOldestActiveConnection()

@@ -16,9 +16,9 @@ func StartServiceAPI(listenAddr string, servers state.ServerStateWriter, geoFind
 	serviceAPI.HandleFunc(infra.AmadaServiceAPISetRegionResource,
 		func(resp http.ResponseWriter, req *http.Request) {
 			query := req.URL.Query()
-			serverID := query.Get(infra.RegionServerIDHeader)
-			publicAddr := query.Get(infra.ServerPublicAddrHeader)
-			privateAddr := query.Get(infra.ServerPrivateAddrHeader)
+			serverID := query.Get(infra.RegionServerIDParam)
+			publicAddr := query.Get(infra.ServerPublicAddrParam)
+			privateAddr := query.Get(infra.ServerPrivateAddrParam)
 
 			// Check if serverID is valid
 			validServerID := false
@@ -44,7 +44,7 @@ func StartServiceAPI(listenAddr string, servers state.ServerStateWriter, geoFind
 	// Remove regional server address
 	serviceAPI.HandleFunc(infra.AmadaServiceAPIDelRegionResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			serverID := req.URL.Query().Get(infra.RegionServerIDHeader)
+			serverID := req.URL.Query().Get(infra.RegionServerIDParam)
 
 			if err := servers.DeleteServerEntry(serverID); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
@@ -55,7 +55,7 @@ func StartServiceAPI(listenAddr string, servers state.ServerStateWriter, geoFind
 	// Update MaxMindDB File
 	serviceAPI.HandleFunc(infra.AmadaServiceAPIUpdateGeoResource,
 		func(resp http.ResponseWriter, req *http.Request) {
-			fname := req.URL.Query().Get(infra.MMDBFileNameHeader)
+			fname := req.URL.Query().Get(infra.MMDBFileNameParam)
 
 			if err := geoFinder.LoadDatabase(fname); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)

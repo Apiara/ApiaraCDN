@@ -47,12 +47,12 @@ func (e *NeedEndpointAllocator) PlaceEndpoint(endpoint Websocket) error {
 	// Read allocate request from endpoint
 	_, data, err := endpoint.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("Failed to read endpoint message: %w", err)
+		return fmt.Errorf("failed to read endpoint message: %w", err)
 	}
 
 	req := allocateRequest{}
 	if err = json.Unmarshal(data, &req); err != nil {
-		return fmt.Errorf("Failed to unmarshal endpoint allocate request: %w", err)
+		return fmt.Errorf("failed to unmarshal endpoint allocate request: %w", err)
 	}
 
 	// Choose serving FID to place
@@ -69,7 +69,7 @@ func (e *NeedEndpointAllocator) PlaceEndpoint(endpoint Websocket) error {
 		}
 	}
 	if chosenID == "" {
-		return fmt.Errorf("Failed to find valid allocation for endpoint. All IDs being served are bad")
+		return fmt.Errorf("failed to find valid allocation for endpoint. all IDs being served are bad")
 	}
 
 	// Respond
@@ -79,10 +79,10 @@ func (e *NeedEndpointAllocator) PlaceEndpoint(endpoint Websocket) error {
 	}
 	data, err = json.Marshal(&resp)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal endpoint allocate response: %w", err)
+		return fmt.Errorf("failed to marshal endpoint allocate response: %w", err)
 	}
 	if err = endpoint.WriteMessage(websocket.TextMessage, data); err != nil {
-		return fmt.Errorf("Failed to write allocate response to websocket: %w", err)
+		return fmt.Errorf("failed to write allocate response to websocket: %w", err)
 	}
 
 	// Place in connection queue

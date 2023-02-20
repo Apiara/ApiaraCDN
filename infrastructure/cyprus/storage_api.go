@@ -25,7 +25,7 @@ func (n *nonListableFileSystem) Open(path string) (http.File, error) {
 	}
 
 	if stat.IsDir() {
-		return nil, fmt.Errorf("Directory listing not allowed")
+		return nil, fmt.Errorf("directory listing not allowed")
 	}
 	return file, nil
 }

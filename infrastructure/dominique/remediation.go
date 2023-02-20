@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	unreconcilableErr = errors.New("Failed to reconcile reports")
+	errUnreconcilable = errors.New("failed to reconcile reports")
 )
 
 /*
@@ -65,17 +65,17 @@ func processSession(sid string, startTime time.Time, endTime time.Time,
 		if err == nil {
 			err = timeseries.WriteDescription(description, time.Now())
 			if err != nil {
-				return fmt.Errorf("Failed to write description post-reconciliation: %w", err)
+				return fmt.Errorf("failed to write description post-reconciliation: %w", err)
 			}
 			return nil
-		} else if err != nil && err != unreconcilableErr {
+		} else if err != nil && err != errUnreconcilable {
 			log.Printf("Failed to reconcile reports: %v", err)
 		}
 	}
 
 	// Write reports to queue for manual remediation if no remediation strategies worked
 	if err = handleQueue.Write(clientReport, endpointReport); err != nil {
-		return fmt.Errorf("Failed to write reports to manual remediation queue: %w", err)
+		return fmt.Errorf("failed to write reports to manual remediation queue: %w", err)
 	}
 	return nil
 }

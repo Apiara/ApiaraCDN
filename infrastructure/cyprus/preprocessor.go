@@ -3,7 +3,6 @@ package cyprus
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -46,7 +45,6 @@ func RemoveIngestArtifacts(ingest MediaIngest) {
 				os.Remove(mediaSegment.File)
 			}
 		}
-		break
 	case *RawMedia:
 		os.Remove(mediaMap.File)
 	}
@@ -69,7 +67,7 @@ func (m *MockDataPreprocessor) IngestMedia(fname string) (MediaIngest, error) {
 	if ingest, ok := m.Ingests[fname]; ok {
 		return ingest, nil
 	}
-	return MediaIngest{}, fmt.Errorf("Ingest for %s doesn't exist", fname)
+	return MediaIngest{}, fmt.Errorf("ingest for %s doesn't exist", fname)
 }
 
 /*
@@ -95,7 +93,7 @@ func (c *CompoundPreprocessor) IngestMedia(url string) (MediaIngest, error) {
 	ext := filepath.Ext(strings.TrimSpace(url))
 	preprocessor, ok := c.extensionMap[ext]
 	if !ok {
-		return MediaIngest{}, fmt.Errorf("Failed to find proper preprocessor for %s", url)
+		return MediaIngest{}, fmt.Errorf("failed to find proper preprocessor for %s", url)
 	}
 	return preprocessor.IngestMedia(url)
 }
@@ -116,7 +114,7 @@ func NewRawPreprocessor(workingPath string) *RawPreprocessor {
 // IngestMedia returns the filepath of the downloaded raw media file
 func (r *RawPreprocessor) IngestMedia(fileURL string) (MediaIngest, error) {
 	// Download single media file
-	outFile, err := ioutil.TempFile(r.outputDir, ingestFilePattern)
+	outFile, err := os.CreateTemp(r.outputDir, ingestFilePattern)
 	if err != nil {
 		return MediaIngest{}, fmt.Errorf("failed to create ingest file: %w", err)
 	}
@@ -154,16 +152,16 @@ func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Pl
 	for i, hlsSegment := range hlsSegments {
 		segmentURL, err := url.JoinPath(basePath, hlsSegment.Segment)
 		if err != nil {
-			return VODStream{}, fmt.Errorf("Failed to create segment download url: %w", err)
+			return VODStream{}, fmt.Errorf("failed to create segment download url: %w", err)
 		}
-		segmentFile, err := ioutil.TempFile(r.outputDir, ingestFilePattern)
+		segmentFile, err := os.CreateTemp(r.outputDir, ingestFilePattern)
 		if err != nil {
-			return VODStream{}, fmt.Errorf("Failed to create ingest file: %w", err)
+			return VODStream{}, fmt.Errorf("failed to create ingest file: %w", err)
 		}
 
 		if err := r.retrieveFile(segmentURL, segmentFile); err != nil {
 			segmentFile.Close()
-			return VODStream{}, fmt.Errorf("Failed to download segment %s: %w", segmentURL, err)
+			return VODStream{}, fmt.Errorf("failed to download segment %s: %w", segmentURL, err)
 		}
 		segmentFile.Close()
 
@@ -183,20 +181,20 @@ func (r *HLSPreprocessor) parseStreamPlaylist(basePath string, playlist *m3u8.Pl
 
 func (r *HLSPreprocessor) getManifest(manifestURL string) (*m3u8.Playlist, error) {
 	// Download manifest file
-	outFile, err := ioutil.TempFile("", "tmp_manifest_*.m3u8")
+	outFile, err := os.CreateTemp("", "tmp_manifest_*.m3u8")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create temporary file: %w", err)
+		return nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}
 	if err = r.retrieveFile(manifestURL, outFile); err != nil {
 		outFile.Close()
-		return nil, fmt.Errorf("Failed to download manifest at %s: %w", manifestURL, err)
+		return nil, fmt.Errorf("failed to download manifest at %s: %w", manifestURL, err)
 	}
 	outFile.Close()
 
 	// Parse manifest file
 	playlist, err := m3u8.ReadFile(outFile.Name())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse .m3u8 manifest %s: %w", outFile.Name(), err)
+		return nil, fmt.Errorf("failed to parse .m3u8 manifest %s: %w", outFile.Name(), err)
 	}
 	os.Remove(outFile.Name())
 
@@ -211,7 +209,7 @@ func (r *HLSPreprocessor) IngestMedia(manifestURL string) (MediaIngest, error) {
 	// Fetch and parse master manifest
 	masterManifest, err := r.getManifest(manifestURL)
 	if err != nil {
-		return MediaIngest{}, fmt.Errorf("Failed to download manifest %s: %w", manifestURL, err)
+		return MediaIngest{}, fmt.Errorf("failed to download manifest %s: %w", manifestURL, err)
 	}
 
 	baseURL := path.Dir(manifestURL)
@@ -222,17 +220,17 @@ func (r *HLSPreprocessor) IngestMedia(manifestURL string) (MediaIngest, error) {
 			// Retrieve and parse sub manifests
 			subManifestURL, err := url.JoinPath(baseURL, playlist.URI)
 			if err != nil {
-				return MediaIngest{}, fmt.Errorf("Failed to create sub manifest download URL: %w", err)
+				return MediaIngest{}, fmt.Errorf("failed to create sub manifest download URL: %w", err)
 			}
 			subManifest, err := r.getManifest(subManifestURL)
 			if err != nil {
-				return MediaIngest{}, fmt.Errorf("Failed to retrieve sub manifest %s: %w", subManifestURL, err)
+				return MediaIngest{}, fmt.Errorf("failed to retrieve sub manifest %s: %w", subManifestURL, err)
 			}
 
 			// generate internal 'stream' object based on sub manifest
 			mediaStream, err := r.parseStreamPlaylist(path.Dir(subManifestURL), subManifest)
 			if err != nil {
-				return MediaIngest{}, fmt.Errorf("Failed to parse sub manifest %s: %w", subManifestURL, err)
+				return MediaIngest{}, fmt.Errorf("failed to parse sub manifest %s: %w", subManifestURL, err)
 			}
 
 			// complete and store processed stream
@@ -243,7 +241,7 @@ func (r *HLSPreprocessor) IngestMedia(manifestURL string) (MediaIngest, error) {
 		// generate internal 'stream' object for single manifest
 		mediaStream, err := r.parseStreamPlaylist(baseURL, masterManifest)
 		if err != nil {
-			return MediaIngest{}, fmt.Errorf("Failed to parse manifest %s: %w", manifestURL, err)
+			return MediaIngest{}, fmt.Errorf("failed to parse manifest %s: %w", manifestURL, err)
 		}
 
 		// store stream under default URL name to indicate no sub manifests

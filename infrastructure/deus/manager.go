@@ -100,6 +100,7 @@ func NewMasterContentManager(state ManagerMicroserviceState, processAPI string,
 	}, nil
 }
 
+// Sends 'query' to 'address' via HTTP GET
 func (m *MasterContentManager) sendHTTPMessage(addr string, query string) error {
 	req, err := http.NewRequest("GET", addr, nil)
 	if err != nil {
@@ -112,15 +113,16 @@ func (m *MasterContentManager) sendHTTPMessage(addr string, query string) error 
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Received non-successful http response: %d", resp.StatusCode)
+		return fmt.Errorf("received non-successful http response: %d", resp.StatusCode)
 	}
 	return nil
 }
 
+// Commands Cyprus data processing service to ingest+digest 'cid'
 func (m *MasterContentManager) processContent(cid string) (string, int64, error) {
 	// Create data process request
 	query := url.Values{}
-	query.Add(infra.ContentIDHeader, cid)
+	query.Add(infra.ContentIDParam, cid)
 	err := m.sendHTTPMessage(m.processDataAPIAddr, query.Encode())
 	if err != nil {
 		return "", -1, err
@@ -145,7 +147,7 @@ func (m *MasterContentManager) processContent(cid string) (string, int64, error)
 			return "", -1, err
 		}
 		if resp.StatusCode != http.StatusOK {
-			return "", -1, fmt.Errorf("Process status request failed with error code %d", resp.StatusCode)
+			return "", -1, fmt.Errorf("process status request failed with error code %d", resp.StatusCode)
 		}
 		if err = json.NewDecoder(resp.Body).Decode(&status); err != nil {
 			return "", -1, err
@@ -156,24 +158,26 @@ func (m *MasterContentManager) processContent(cid string) (string, int64, error)
 		case infra.RunningProcessing:
 			continue
 		case infra.FailedProcessing:
-			return "", -1, fmt.Errorf("Process request for %s failed", cid)
+			return "", -1, fmt.Errorf("process request for %s failed", cid)
 		case infra.FinishedProcessing:
 			return status.Metadata.FunctionalID, status.Metadata.ByteSize, nil
 		}
 	}
 
-	return "", -1, fmt.Errorf("Process request for %s timed out", cid)
+	return "", -1, fmt.Errorf("process request for %s timed out", cid)
 }
 
+// Commands Cyprus data processor to delete all resources under 'cid'
 func (m *MasterContentManager) deleteProcessedContent(cid string) error {
 	query := url.Values{}
-	query.Add(infra.ContentIDHeader, cid)
+	query.Add(infra.ContentIDParam, cid)
 	return m.sendHTTPMessage(m.deleteDataAPIAddr, query.Encode())
 }
 
+// Informs 'edgeServerAddr' that 'functionalID' should be served at edge location
 func (m *MasterContentManager) startServingAtEdge(edgeServerAddr string, functionalID string) error {
 	query := url.Values{}
-	query.Add(infra.ContentFunctionalIDHeader, functionalID)
+	query.Add(infra.ContentFunctionalIDParam, functionalID)
 	serverAddResource, err := url.JoinPath(edgeServerAddr, infra.DamoclesServiceAPIAddResource)
 	if err != nil {
 		return err
@@ -184,25 +188,12 @@ func (m *MasterContentManager) startServingAtEdge(edgeServerAddr string, functio
 	return nil
 }
 
-func (m *MasterContentManager) publishContentToAllocator(regionID string, functionalID string, size int64) error {
-	// Perform content publishing request to dataspace allocator
+// Informs 'edgeServerAddress' that it should no longer serve 'functionalID' at edge location
+func (m *MasterContentManager) stopServingAtEdge(edgeServerAddr string, functionalID string) error {
 	query := url.Values{}
-	query.Add(infra.ContentFunctionalIDHeader, functionalID)
-	query.Add(infra.ByteSizeHeader, strconv.FormatInt(size, 10))
-	query.Add(infra.RegionServerIDHeader, regionID)
-	if err := m.sendHTTPMessage(m.publishDataAPIAddr, query.Encode()); err != nil {
-		return err
-	}
+	query.Add(infra.ContentFunctionalIDParam, functionalID)
 
-	return nil
-}
-
-func (m *MasterContentManager) stopServingAtEdge(serverAddr string, functionalID string) error {
-	// Send purge request to session server
-	query := url.Values{}
-	query.Add(infra.ContentFunctionalIDHeader, functionalID)
-
-	serverDelResource, err := url.JoinPath(serverAddr, infra.DamoclesServiceAPIDelResource)
+	serverDelResource, err := url.JoinPath(edgeServerAddr, infra.DamoclesServiceAPIDelResource)
 	if err != nil {
 		return err
 	}
@@ -214,19 +205,32 @@ func (m *MasterContentManager) stopServingAtEdge(serverAddr string, functionalID
 	return nil
 }
 
-func (m *MasterContentManager) unpublishContentFromAllocator(regionID string, functionalID string) error {
-	// Send purge request to allocation server
+// Informs Crow data allocator service to start allocating 'functionalID' to endpoints in 'regionID'
+func (m *MasterContentManager) publishContentToAllocator(regionID string, functionalID string, size int64) error {
 	query := url.Values{}
-	query.Add(infra.ContentFunctionalIDHeader, functionalID)
-	query.Add(infra.RegionServerIDHeader, regionID)
+	query.Add(infra.ContentFunctionalIDParam, functionalID)
+	query.Add(infra.ContentByteSizeParam, strconv.FormatInt(size, 10))
+	query.Add(infra.RegionServerIDParam, regionID)
+	if err := m.sendHTTPMessage(m.publishDataAPIAddr, query.Encode()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Informs Crow data allocator to stop allocating 'functionalID' to endpoints in 'regionID'
+func (m *MasterContentManager) unpublishContentFromAllocator(regionID string, functionalID string) error {
+	query := url.Values{}
+	query.Add(infra.ContentFunctionalIDParam, functionalID)
+	query.Add(infra.RegionServerIDParam, regionID)
 	if err := m.sendHTTPMessage(m.unpublishDataAPIAddr, query.Encode()); err != nil {
 		return err
 	}
 	return nil
 }
 
+// Runs all 'reversalOperations' in LIFO order to reverse partial operations
 func performRollback(reversalOperations []func() error) {
-	// Perform rollback LIFO
 	for i := len(reversalOperations) - 1; i >= 0; i-- {
 		reverse := reversalOperations[i]
 		if err := reverse(); err != nil {

@@ -28,7 +28,7 @@ func (m *mockWebsocket) ReadMessage() (int, []byte, error) {
 		m.msgs = m.msgs[1:]
 		return websocket.TextMessage, msg, nil
 	}
-	return -1, nil, fmt.Errorf("No message")
+	return -1, nil, fmt.Errorf("no message")
 }
 
 func (m *mockWebsocket) WriteMessage(int, []byte) error  { m.writeCount++; return nil }

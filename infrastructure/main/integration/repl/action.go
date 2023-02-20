@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,9 +32,16 @@ const (
 	SuccessResult = "Success"
 )
 
-type action func(args []string) (string, error)
+type decoder func(*bytes.Buffer, interface{}) error
 
-func makeHTTPRequest(url string, query url.Values, body io.Reader, client *http.Client, result interface{}) error {
+func stringDecoder(buf *bytes.Buffer, result interface{}) error {
+	strResult := result.(*string)
+	*strResult = buf.String()
+	return nil
+}
+
+func makeHTTPRequest(url string, query url.Values, body io.Reader,
+	client *http.Client, dec decoder, result interface{}) error {
 	// Create HTTP request
 	req, err := http.NewRequest(http.MethodGet, url, body)
 	if err != nil {
@@ -60,13 +66,14 @@ func makeHTTPRequest(url string, query url.Values, body io.Reader, client *http.
 
 	// Unmarshal response body into result using gob
 	if buf.Len() > 0 {
-		dec := gob.NewDecoder(&buf)
-		if err = dec.Decode(result); err != nil {
+		if err = dec(&buf, result); err != nil {
 			return err
 		}
 	}
 	return nil
 }
+
+type action func(args []string) (string, error)
 
 func createActionMap(conf replConfig) map[string]action {
 	localhost := "http://127.0.0.1:"
@@ -83,10 +90,10 @@ func createActionMap(conf replConfig) map[string]action {
 	actions := make(map[string]action)
 	actions[PushCommand] = func(args []string) (string, error) {
 		query := url.Values{}
-		query.Add(infra.ContentIDHeader, args[0])
-		query.Add(infra.RegionServerIDHeader, args[1])
+		query.Add(infra.ContentIDParam, args[0])
+		query.Add(infra.RegionServerIDParam, args[1])
 
-		err := makeHTTPRequest(pushResource, query, nil, http.DefaultClient, nil)
+		err := makeHTTPRequest(pushResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -94,10 +101,10 @@ func createActionMap(conf replConfig) map[string]action {
 	}
 	actions[PurgeCommand] = func(args []string) (string, error) {
 		query := url.Values{}
-		query.Add(infra.ContentIDHeader, args[0])
-		query.Add(infra.RegionServerIDHeader, args[1])
+		query.Add(infra.ContentIDParam, args[0])
+		query.Add(infra.RegionServerIDParam, args[1])
 
-		err := makeHTTPRequest(purgeResource, query, nil, http.DefaultClient, nil)
+		err := makeHTTPRequest(purgeResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -105,9 +112,9 @@ func createActionMap(conf replConfig) map[string]action {
 	}
 	actions[SetRuleCommand] = func(args []string) (string, error) {
 		query := url.Values{}
-		query.Add(infra.ContentRuleHeader, args[0])
+		query.Add(infra.ContentRuleParam, args[0])
 
-		err := makeHTTPRequest(setRuleResource, query, nil, http.DefaultClient, nil)
+		err := makeHTTPRequest(setRuleResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -115,9 +122,9 @@ func createActionMap(conf replConfig) map[string]action {
 	}
 	actions[UnsetRuleCommand] = func(args []string) (string, error) {
 		query := url.Values{}
-		query.Add(infra.ContentRuleHeader, args[0])
+		query.Add(infra.ContentRuleParam, args[0])
 
-		err := makeHTTPRequest(unsetRuleResource, query, nil, http.DefaultClient, nil)
+		err := makeHTTPRequest(unsetRuleResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -127,16 +134,17 @@ func createActionMap(conf replConfig) map[string]action {
 		var resourceUrl string
 		var result string
 		query := url.Values{}
+		query.Add(infra.DebugModeForcedRequestIPParam, args[1])
 
 		switch strings.ToLower(args[0]) {
 		case ClientRouteParam:
 			resourceUrl = clientLocateResource
-			query.Add(infra.ContentIDHeader, args[1])
+			query.Add(infra.ContentIDParam, args[2])
 		case EndpointRouteParam:
 			resourceUrl = endpointLocateResource
 		}
 
-		err := makeHTTPRequest(resourceUrl, query, nil, http.DefaultClient, &result)
+		err := makeHTTPRequest(resourceUrl, query, nil, http.DefaultClient, stringDecoder, &result)
 		if err != nil {
 			return "", err
 		}
@@ -145,10 +153,10 @@ func createActionMap(conf replConfig) map[string]action {
 	actions[AllocateCommand] = func(args []string) (string, error) {
 		var result string
 		query := url.Values{}
-		query.Add(infra.RegionServerIDHeader, args[0])
-		query.Add(infra.ByteSizeHeader, args[1])
+		query.Add(infra.RegionServerIDParam, args[0])
+		query.Add(infra.ContentByteSizeParam, args[1])
 
-		err := makeHTTPRequest(allocateResource, query, nil, http.DefaultClient, &result)
+		err := makeHTTPRequest(allocateResource, query, nil, http.DefaultClient, stringDecoder, &result)
 		if err != nil {
 			return "", err
 		}
@@ -156,11 +164,11 @@ func createActionMap(conf replConfig) map[string]action {
 	}
 	actions[SetRegionCommand] = func(args []string) (string, error) {
 		query := url.Values{}
-		query.Add(infra.RegionServerIDHeader, args[0])
-		query.Add(infra.ServerPublicAddrHeader, args[1])
-		query.Add(infra.ServerPrivateAddrHeader, args[2])
+		query.Add(infra.RegionServerIDParam, args[0])
+		query.Add(infra.ServerPublicAddrParam, args[1])
+		query.Add(infra.ServerPrivateAddrParam, args[2])
 
-		err := makeHTTPRequest(setRegionResource, query, nil, http.DefaultClient, nil)
+		err := makeHTTPRequest(setRegionResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -168,9 +176,9 @@ func createActionMap(conf replConfig) map[string]action {
 	}
 	actions[UnsetRegionCommand] = func(args []string) (string, error) {
 		query := url.Values{}
-		query.Add(infra.RegionServerIDHeader, args[0])
+		query.Add(infra.RegionServerIDParam, args[0])
 
-		err := makeHTTPRequest(unsetRegionResource, query, nil, http.DefaultClient, nil)
+		err := makeHTTPRequest(unsetRegionResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -186,8 +194,8 @@ func createActionMap(conf replConfig) map[string]action {
 			"\tPURGE <content_id> <region_id>\n",
 			"\tSRULE <rule>\n",
 			"\tURULE <rule>\n",
-			"\tROUTE CLIENT <content_id>\n",
-			"\tROUTE ENDPOINT\n",
+			"\tROUTE CLIENT <ip> <content_id>\n",
+			"\tROUTE ENDPOINT <ip>\n",
 			"\tALLOCATE <region_id> <available_bytes>\n",
 			"\tSREGION <region_id> <public_addr> <private_addr>\n",
 			"\tUREGION <region_id>\n",

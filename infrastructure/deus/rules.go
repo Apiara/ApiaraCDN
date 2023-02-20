@@ -47,7 +47,7 @@ func (v *ContentValidatorClient) IsValid(cid string) (bool, error) {
 	}
 
 	query := url.Values{}
-	query.Add(infra.ContentIDHeader, cid)
+	query.Add(infra.ContentIDParam, cid)
 	validateReq.URL.RawQuery = query.Encode()
 
 	resp, err := v.httpClient.Do(validateReq)

@@ -52,7 +52,6 @@ func signal(client Websocket, endpoint Websocket) {
 				return
 			}
 			endpoint.WriteMessage(msg.dataType, msg.data)
-			break
 		case msg, ok = <-endpointMsgs:
 			if !ok {
 				return

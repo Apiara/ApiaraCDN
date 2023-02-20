@@ -4,7 +4,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func createTestIngestFile(fname string) (string, error) {
-	outFile, err := ioutil.TempFile("./test_resources/working/", ingestFilePattern)
+	outFile, err := os.CreateTemp("./test_resources/working/", ingestFilePattern)
 	if err != nil {
 		return "", err
 	}
@@ -76,7 +75,7 @@ func TestAESProcessorWithRawMedia(t *testing.T) {
 
 	// Decrypt and check content integrity
 	media := digest.Result.(RawMedia)
-	cipherData, err := ioutil.ReadFile(media.File)
+	cipherData, err := os.ReadFile(media.File)
 	if err != nil {
 		t.Fatalf("Failed to read digest file: %v", err)
 	}

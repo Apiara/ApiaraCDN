@@ -3,7 +3,6 @@ package cyprus
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -51,7 +50,7 @@ func NewFilesystemStorageManager(storageDir string, contentState state.ContentMe
 	}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return nil, fmt.Errorf("Failed to make dir %s: %w", dir, err)
+			return nil, fmt.Errorf("failed to make dir %s: %w", dir, err)
 		}
 	}
 
@@ -72,7 +71,7 @@ func (s *FilesystemStorageManager) publishManifest(mediaMap VODManifest, key []b
 	// Publish symmetric key
 	urlFname := infra.URLToSafeName(mediaMap.URL)
 	keyFname := path.Join(s.keyDir, urlFname)
-	if err := ioutil.WriteFile(keyFname, key, publishedFilePerms); err != nil {
+	if err := os.WriteFile(keyFname, key, publishedFilePerms); err != nil {
 		return resources, err
 	}
 	resources = append(resources, keyFname)
@@ -95,7 +94,7 @@ func (s *FilesystemStorageManager) publishManifest(mediaMap VODManifest, key []b
 	if err != nil {
 		return resources, err
 	}
-	if err = ioutil.WriteFile(completeMapFname, serialCompleteMap, publishedFilePerms); err != nil {
+	if err = os.WriteFile(completeMapFname, serialCompleteMap, publishedFilePerms); err != nil {
 		return resources, err
 	}
 	resources = append(resources, completeMapFname)
@@ -107,7 +106,7 @@ func (s *FilesystemStorageManager) publishManifest(mediaMap VODManifest, key []b
 	if err != nil {
 		return resources, err
 	}
-	if err = ioutil.WriteFile(partialMapFname, serialPartialMap, publishedFilePerms); err != nil {
+	if err = os.WriteFile(partialMapFname, serialPartialMap, publishedFilePerms); err != nil {
 		return resources, err
 	}
 	resources = append(resources, partialMapFname)
@@ -123,7 +122,7 @@ func (s *FilesystemStorageManager) publishRawMedia(media RawMedia, key []byte) (
 	// Publish symmetric key
 	urlFname := infra.URLToSafeName(media.URL)
 	keyFname := path.Join(s.keyDir, urlFname)
-	if err := ioutil.WriteFile(keyFname, key, publishedFilePerms); err != nil {
+	if err := os.WriteFile(keyFname, key, publishedFilePerms); err != nil {
 		return resources, err
 	}
 	resources = append(resources, keyFname)
@@ -141,7 +140,7 @@ func (s *FilesystemStorageManager) publishRawMedia(media RawMedia, key []byte) (
 	if err != nil {
 		return resources, err
 	}
-	if err = ioutil.WriteFile(mediaDefFname, serialMediaDef, publishedFilePerms); err != nil {
+	if err = os.WriteFile(mediaDefFname, serialMediaDef, publishedFilePerms); err != nil {
 		return resources, err
 	}
 	resources = append(resources, mediaDefFname)
@@ -153,7 +152,7 @@ func (s *FilesystemStorageManager) publishRawMedia(media RawMedia, key []byte) (
 	if err != nil {
 		return resources, err
 	}
-	if err = ioutil.WriteFile(pMediaDefFname, serialPMedia, publishedFilePerms); err != nil {
+	if err = os.WriteFile(pMediaDefFname, serialPMedia, publishedFilePerms); err != nil {
 		return resources, err
 	}
 	resources = append(resources, pMediaDefFname)
@@ -184,15 +183,13 @@ func (s *FilesystemStorageManager) Publish(digest MediaDigest) error {
 		url = media.URL
 		fid = media.FunctionalID
 		resources, err = s.publishRawMedia(media, digest.CryptKey)
-		break
 	case VODMediaType:
 		mediaManifest := digest.Result.(VODManifest)
 		url = mediaManifest.URL
 		fid = mediaManifest.FunctionalID
 		resources, err = s.publishManifest(mediaManifest, digest.CryptKey)
-		break
 	default:
-		return fmt.Errorf("Failed to publish. MediaType %d does not exist", digest.Type)
+		return fmt.Errorf("failed to publish. MediaType %d does not exist", digest.Type)
 	}
 
 	// Purge all created resources if anything failed
@@ -216,7 +213,7 @@ func (s *FilesystemStorageManager) purge(url string) error {
 	// Purge resource files
 	resources, err := s.contentState.GetContentResources(url)
 	if err != nil {
-		return fmt.Errorf("Failed to read resource list for URL %s: %w", url, err)
+		return fmt.Errorf("failed to read resource list for URL %s: %w", url, err)
 	}
 	s.purgeFiles(resources)
 	return s.contentState.DeleteContentEntry(url)
