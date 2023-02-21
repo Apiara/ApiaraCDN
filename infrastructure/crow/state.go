@@ -26,7 +26,11 @@ func LoadContent(metadata StateMetadata, allocator LocationAwareDataAllocator) e
 	}
 
 	// Update allocator based on what content is served where
-	contentSize := make(map[string]int64)
+	type cinfo struct {
+		fid  string
+		size int64
+	}
+	contentInfo := make(map[string]*cinfo)
 	for _, server := range servers {
 		serving, err := metadata.ServerContentList(server)
 		if err != nil {
@@ -34,13 +38,18 @@ func LoadContent(metadata StateMetadata, allocator LocationAwareDataAllocator) e
 		}
 
 		for _, cid := range serving {
-			if _, ok := contentSize[cid]; !ok {
-				contentSize[cid], err = metadata.GetContentSize(cid)
+			if _, ok := contentInfo[cid]; !ok {
+				contentInfo[cid] = &cinfo{}
+				contentInfo[cid].size, err = metadata.GetContentSize(cid)
+				if err != nil {
+					return fmt.Errorf(errMsg, err)
+				}
+				contentInfo[cid].fid, err = metadata.GetContentFunctionalID(cid)
 				if err != nil {
 					return fmt.Errorf(errMsg, err)
 				}
 			}
-			err = allocator.NewEntry(server, cid, contentSize[cid])
+			err = allocator.NewEntry(server, contentInfo[cid].fid, contentInfo[cid].size)
 			if err != nil {
 				return fmt.Errorf(errMsg, err)
 			}

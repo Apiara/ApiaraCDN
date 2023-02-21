@@ -8,6 +8,7 @@ a server is expected to be serving
 */
 type StateMetadata interface {
 	ServerContentList(serverID string) ([]string, error)
+	GetContentFunctionalID(ccid string) (string, error)
 }
 
 // LoadCategories makes updater consistent with what content is expected to be served
@@ -22,7 +23,11 @@ func LoadCategories(regionID string, metadata StateMetadata, updater CategoryUpd
 
 	// Update categories being served
 	for _, cid := range content {
-		if err = updater.CreateCategory(cid); err != nil {
+		fid, err := metadata.GetContentFunctionalID(cid)
+		if err != nil {
+			return fmt.Errorf(errMsg, regionID, err)
+		}
+		if err = updater.CreateCategory(fid); err != nil {
 			return fmt.Errorf(errMsg, regionID, err)
 		}
 	}

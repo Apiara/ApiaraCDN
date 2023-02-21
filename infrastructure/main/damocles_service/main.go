@@ -15,6 +15,7 @@ import (
 /*
 Config Format
 --------------
+  region_id = string
   devices_listen_port = int
   service_listen_port = int
   tracker_collection_duration = time.Duration

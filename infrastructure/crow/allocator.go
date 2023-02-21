@@ -223,15 +223,20 @@ func (d *EvenDataAllocator) AllocateSpace(availableSpace int64) ([]string, error
 		classQueue := d.dataQueues[classIdx]
 
 		// Get all possible allocations from class
+		popped := []*dataItem{}
 		item := classQueue.pop()
-		popped := []*dataItem{item}
+		if item != nil {
+			popped = append(popped, item)
+		}
 		for item != nil && availableSpace > nextClass {
 			allocations = append(allocations, item.id)
 			availableSpace -= item.byteSize
 			item.allocations++
 
-			popped = append(popped, item)
 			item = classQueue.pop()
+			if item != nil {
+				popped = append(popped, item)
+			}
 		}
 
 		// Push items allocated back into PQ with updated priorities
