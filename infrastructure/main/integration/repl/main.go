@@ -16,6 +16,8 @@ type replConfig struct {
 	ContentManagerPort   int    `toml:"content_manager_port"`
 	RuleManagerPort      int    `toml:"rule_manager_port"`
 	RegionManagerPort    int    `toml:"region_manager_port"`
+	ReportAPIPort        int    `toml:"report_api_port"`
+	StatQueryPort        int    `toml:"stat_query_port"`
 	FileServerListenPort int    `toml:"fs_listen_port"`
 	FileServerDirectory  string `toml:"fs_directory"`
 }

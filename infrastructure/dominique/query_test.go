@@ -43,7 +43,7 @@ func TestDataAccessQuery(t *testing.T) {
 	// Test basic sum query
 	basicQuery := dataAccessQuery{
 		lookup:    createTestLookup(responses),
-		key:       "key",
+		key:       QueryKeyParam,
 		start:     start,
 		end:       end,
 		queryType: SumQuery,
@@ -56,7 +56,7 @@ func TestDataAccessQuery(t *testing.T) {
 	// Test increment query
 	incQuery := dataAccessQuery{
 		lookup:    createTestLookup(responses),
-		key:       "key",
+		key:       QueryKeyParam,
 		start:     start,
 		end:       end,
 		queryType: IncrementQuery,

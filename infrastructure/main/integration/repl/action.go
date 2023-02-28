@@ -22,12 +22,19 @@ const (
 	AllocateCommand    = "allocate"
 	SetRegionCommand   = "sregion"
 	UnsetRegionCommand = "uregion"
+	ReportCommand      = "report"
+	StatCommand        = "stat"
 
 	ExitCommand = "exit"
 	HelpCommand = "help"
 
-	ClientRouteParam   = "client"
-	EndpointRouteParam = "endpoint"
+	ClientCommandParam   = "client"
+	EndpointCommandParam = "endpoint"
+
+	SumStatCommandParam        = "sum"
+	IncStatCommandParam        = "inc"
+	UserKeyStatCommandParam    = "user"
+	ContentKeyStatCommandParam = "content"
 
 	SuccessResult = "Success"
 )
@@ -86,6 +93,9 @@ func createActionMap(conf replConfig) map[string]action {
 	allocateResource := localhost + strconv.Itoa(conf.AllocatorPort) + infra.CrowAllocateAPIResource
 	setRegionResource := localhost + strconv.Itoa(conf.RegionManagerPort) + infra.AmadaServiceAPISetRegionResource
 	unsetRegionResource := localhost + strconv.Itoa(conf.RegionManagerPort) + infra.AmadaServiceAPIDelRegionResource
+	clientReportResource := localhost + strconv.Itoa(conf.ReportAPIPort) + infra.DominiqueReportAPIClientResource
+	endpointReportResource := localhost + strconv.Itoa(conf.ReportAPIPort) + infra.DominiqueReportAPIEndpointResource
+	statQueryResource := localhost + strconv.Itoa(conf.StatQueryPort) + infra.DominiqueDataAPIFetchResource
 
 	actions := make(map[string]action)
 	actions[PushCommand] = func(args []string) (string, error) {
@@ -137,10 +147,10 @@ func createActionMap(conf replConfig) map[string]action {
 		query.Add(infra.DebugModeForcedRequestIPParam, args[1])
 
 		switch strings.ToLower(args[0]) {
-		case ClientRouteParam:
+		case ClientCommandParam:
 			resourceUrl = clientLocateResource
 			query.Add(infra.ContentIDParam, args[2])
-		case EndpointRouteParam:
+		case EndpointCommandParam:
 			resourceUrl = endpointLocateResource
 		}
 
@@ -184,6 +194,41 @@ func createActionMap(conf replConfig) map[string]action {
 		}
 		return SuccessResult, nil
 	}
+	actions[ReportCommand] = func(args []string) (string, error) {
+		if len(args) < 2 {
+			return "", fmt.Errorf("not enough arguments")
+		}
+		report := strings.Join(args[1:], " ")
+		body := bytes.NewBufferString(report)
+
+		var err error
+		switch strings.ToLower(args[0]) {
+		case ClientCommandParam:
+			err = makeHTTPRequest(clientReportResource, nil, body, http.DefaultClient, nil, nil)
+		case EndpointCommandParam:
+			err = makeHTTPRequest(endpointReportResource, nil, body, http.DefaultClient, nil, nil)
+		}
+
+		if err != nil {
+			return "", err
+		}
+		return SuccessResult, nil
+	}
+	actions[StatCommand] = func(args []string) (string, error) {
+		query := url.Values{}
+		keypairs := strings.Split(args[0], ",")
+		for _, pair := range keypairs {
+			values := strings.Split(pair, "=")
+			query.Add(values[0], values[1])
+		}
+
+		var result string
+		err := makeHTTPRequest(statQueryResource, query, nil, http.DefaultClient, stringDecoder, &result)
+		if err != nil {
+			return "", err
+		}
+		return result, nil
+	}
 	actions[ExitCommand] = func([]string) (string, error) {
 		os.Exit(0)
 		return "", nil
@@ -199,6 +244,9 @@ func createActionMap(conf replConfig) map[string]action {
 			"\tALLOCATE <region_id> <available_bytes>\n",
 			"\tSREGION <region_id> <public_addr> <private_addr>\n",
 			"\tUREGION <region_id>\n",
+			"\tREPORT CLIENT <json_report>\n",
+			"\tREPORT ENDPOINT <json_report>\n",
+			"\tSTAT <key=value,key=value,...>\n",
 			"\tEXIT\n",
 		), nil
 	}

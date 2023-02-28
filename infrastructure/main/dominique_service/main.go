@@ -41,7 +41,7 @@ type dominiqueConfig struct {
 	PostgresPort                int           `toml:"postgres_port"`
 	PostgresUsername            string        `toml:"postgres_username"`
 	PostgresPassword            string        `toml:"postgres_password"`
-	PostgresDatabase            string        `toml:"postgres_database"`
+	PostgresDatabase            string        `toml:"postgres_dbname"`
 	AcceptableReportVariability int64         `toml:"max_report_variability_bytes"`
 	ReportRetrievalTimeout      time.Duration `toml:"max_report_gap"`
 	BatchRemediationFrequency   time.Duration `toml:"batch_remediation_frequency"`
