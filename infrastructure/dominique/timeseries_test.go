@@ -15,7 +15,7 @@ func TestInfluxDBTimeseriesDBReader(t *testing.T) {
 	finder := state.NewMockMicroserviceState()
 	finder.CreateContentEntry("read_cid", "read_fid", 2048, []string{})
 
-	timeseries := NewInfluxTimeseriesDB(dbURL, dbToken, finder)
+	timeseries := NewInfluxTimeseriesDB(dbURL, dbToken, time.Hour, finder)
 
 	// Test ReadEndpointSessions and ReadContentSessions
 	desc := SessionDescription{
@@ -95,7 +95,7 @@ func TestInfluxTimeseriesDBWriter(t *testing.T) {
 	finder := state.NewMockMicroserviceState()
 	finder.CreateContentEntry("url_fid", "fid", 1024, []string{})
 
-	timeseries := NewInfluxTimeseriesDB(dbURL, dbToken, finder)
+	timeseries := NewInfluxTimeseriesDB(dbURL, dbToken, time.Hour, finder)
 
 	// Test WriteDescription
 	desc := SessionDescription{

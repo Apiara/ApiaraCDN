@@ -121,38 +121,70 @@ func (m *mockTimeseriesDB) ReadContentSessions(string, time.Time, time.Time) ([]
 
 // InfluxTimeseriesDB implements TimeseriesDB using InfluxDB2
 type InfluxTimeseriesDB struct {
-	client         influxdb2.Client
-	sessionsCtx    context.Context
-	reportsCtx     context.Context
-	sessionsWriter influxAPI.WriteAPIBlocking
-	reportsWriter  influxAPI.WriteAPIBlocking
-	dbReader       influxAPI.QueryAPI
-	finder         state.ContentMetadataStateReader
+	client           influxdb2.Client
+	sessionsCtx      context.Context
+	reportsCtx       context.Context
+	sessionsWriter   influxAPI.WriteAPIBlocking
+	reportsWriter    influxAPI.WriteAPIBlocking
+	dbReader         influxAPI.QueryAPI
+	finder           state.ContentMetadataStateReader
+	retroSearchRange time.Duration
 }
 
 /*
 NewInfluxTimeseriesDB creates a new instance of InfluxTimeseriesDB pointing
 at the provided dbURL influx database authenticated with dbToken
 */
-func NewInfluxTimeseriesDB(dbURL, dbToken string, finder state.ContentMetadataStateReader) *InfluxTimeseriesDB {
+func NewInfluxTimeseriesDB(dbURL, dbToken string, retroSearchRange time.Duration, finder state.ContentMetadataStateReader) *InfluxTimeseriesDB {
 	client := influxdb2.NewClient(dbURL, dbToken)
 
 	return &InfluxTimeseriesDB{
-		client:         client,
-		sessionsCtx:    context.Background(),
-		reportsCtx:     context.Background(),
-		sessionsWriter: client.WriteAPIBlocking(OrganizationName, SessionsBucket),
-		reportsWriter:  client.WriteAPIBlocking(OrganizationName, ReportsBucket),
-		dbReader:       client.QueryAPI(OrganizationName),
-		finder:         finder,
+		client:           client,
+		sessionsCtx:      context.Background(),
+		reportsCtx:       context.Background(),
+		sessionsWriter:   client.WriteAPIBlocking(OrganizationName, SessionsBucket),
+		reportsWriter:    client.WriteAPIBlocking(OrganizationName, ReportsBucket),
+		dbReader:         client.QueryAPI(OrganizationName),
+		finder:           finder,
+		retroSearchRange: time.Hour,
 	}
+}
+
+/*
+getContentID irst tries to get content ID from microservice state. If content reports were delayed
+or reported a little late, information may not be stored in microservice state. If not found,
+a lookup is done on previosuly verified reports to see if the content id can be retrieved
+from there
+*/
+func (ts *InfluxTimeseriesDB) getContentID(fid string) (string, error) {
+	errMsg := "failed to retrieve content id from functional id(%s): %w"
+	url, err := ts.finder.GetContentID(fid)
+	if err != nil {
+		searchStart := time.Now().Add(-1 * ts.retroSearchRange).UTC().Format(time.RFC3339)
+		searchEnd := time.Now().UTC().Format(time.RFC3339)
+		query := fmt.Sprintf(`from(bucket:"%s")|> range(start: %s, stop: %s) |> filter(fn: (r) => r._field == "%s" and r._value == "%s") |> limit(n: 1)`,
+			SessionsBucket, searchStart, searchEnd, functionalIDField, fid)
+
+		result, err := ts.dbReader.Query(context.Background(), query)
+		if err != nil {
+			return "", fmt.Errorf(errMsg, fid, err)
+		}
+
+		if result.Next() {
+			record := result.Record()
+			url = record.ValueByKey(contentIDTag).(string)
+		} else {
+			return "", fmt.Errorf(errMsg, fid, err)
+		}
+	}
+	return url, nil
 }
 
 // WriteDescription writes a session description to the SessionsBucket
 func (ts *InfluxTimeseriesDB) WriteDescription(desc SessionDescription, t time.Time) error {
-	url, err := ts.finder.GetContentID(desc.FunctionalID)
+	url, err := ts.getContentID(desc.FunctionalID)
 	if err != nil {
-		return fmt.Errorf("failed to associate functional id with url %s: %w", desc.FunctionalID, err)
+		return fmt.Errorf("failed to associate url with functional id(%s): %w", desc.FunctionalID, err)
 	}
 
 	tags := map[string]string{
@@ -178,9 +210,9 @@ func (ts *InfluxTimeseriesDB) WriteDescription(desc SessionDescription, t time.T
 
 // WriteReport writes a Report to the InfluxDB ReportsBucket
 func (ts *InfluxTimeseriesDB) WriteReport(r Report, t time.Time) error {
-	url, err := ts.finder.GetContentID(r.GetFunctionalID())
+	url, err := ts.getContentID(r.GetFunctionalID())
 	if err != nil {
-		return fmt.Errorf("failed to associate functional id with url %s: %w", r.GetFunctionalID(), err)
+		return fmt.Errorf("failed to associate url with functional id(%s): %w", r.GetFunctionalID(), err)
 	}
 
 	tags := map[string]string{

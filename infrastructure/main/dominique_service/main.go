@@ -65,7 +65,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	timeseries := dominique.NewInfluxTimeseriesDB(conf.InfluxDBAddress, conf.InfluxDBToken, microserviceState)
+	timeseries := dominique.NewInfluxTimeseriesDB(conf.InfluxDBAddress, conf.InfluxDBToken,
+		conf.ReportRetrievalTimeout, microserviceState)
 	matcher := dominique.NewTimedSessionProcessor(conf.ReportRetrievalTimeout, timeseries)
 	remediationQueue, err := dominique.NewPostgresRemediationQueue(conf.PostgresHost, conf.PostgresPort,
 		conf.PostgresUsername, conf.PostgresPassword, conf.PostgresDatabase)
