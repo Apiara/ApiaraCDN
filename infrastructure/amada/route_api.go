@@ -86,6 +86,11 @@ func StartDeviceRoutingAPI(listenAddr string, extractor RequestIPExtractor, geoF
 	dataState state.ContentLocationStateReader, serverIndex state.ServerStateReader,
 	deciderAPIAddr string) {
 
+	pullDeciderAddr, err := url.JoinPath(deciderAPIAddr, infra.DeusServiceAPIPullDeciderResource)
+	if err != nil {
+		panic(err)
+	}
+
 	routeAPI := http.NewServeMux()
 	routeAPI.HandleFunc(infra.AmadaRouteAPIClientResource,
 		func(resp http.ResponseWriter, req *http.Request) {
@@ -99,7 +104,7 @@ func StartDeviceRoutingAPI(listenAddr string, extractor RequestIPExtractor, geoF
 
 			// Forward request to Pull Decider
 			cid := req.URL.Query().Get(infra.ContentIDParam)
-			err = sendNewRequestUpdate(deciderAPIAddr, cid, region)
+			err = sendNewRequestUpdate(pullDeciderAddr, cid, region)
 			if err != nil {
 				log.Printf("Request for %s was not ingested by decider: %v", cid, err)
 			}

@@ -9,21 +9,23 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	infra "github.com/Apiara/ApiaraCDN/infrastructure"
 )
 
 const (
-	PushCommand        = "push"
-	PurgeCommand       = "purge"
-	SetRuleCommand     = "srule"
-	UnsetRuleCommand   = "urule"
-	RouteCommand       = "route"
-	AllocateCommand    = "allocate"
-	SetRegionCommand   = "sregion"
-	UnsetRegionCommand = "uregion"
-	ReportCommand      = "report"
-	StatCommand        = "stat"
+	PushCommand            = "push"
+	PurgeCommand           = "purge"
+	SetRuleCommand         = "srule"
+	UnsetRuleCommand       = "urule"
+	RouteCommand           = "route"
+	AllocateCommand        = "allocate"
+	SetRegionCommand       = "sregion"
+	UnsetRegionCommand     = "uregion"
+	ReportCommand          = "report"
+	StatCommand            = "stat"
+	RepeatedRequestCommand = "request"
 
 	ExitCommand = "exit"
 	HelpCommand = "help"
@@ -229,6 +231,37 @@ func createActionMap(conf replConfig) map[string]action {
 		}
 		return result, nil
 	}
+	actions[RepeatedRequestCommand] = func(args []string) (string, error) {
+		// Prepare http request query
+		query := url.Values{}
+		query.Add(infra.DebugModeForcedRequestIPParam, args[0])
+		query.Add(infra.ContentIDParam, args[1])
+
+		// Extract request rate hyperparameters
+		reqPerSecond, err := strconv.ParseInt(args[2], 10, 64)
+		if err != nil {
+			return "", err
+		}
+		totalTime, err := time.ParseDuration(args[3])
+		if err != nil {
+			return "", err
+		}
+
+		// Perform all requests
+		totalIterations := int(totalTime/time.Second) + 1
+		var result string
+		fmt.Printf("0/%d requests made\n", totalIterations*int(reqPerSecond))
+		for i := 0; i < totalIterations; i++ {
+			for j := 0; j < int(reqPerSecond); j++ {
+				makeHTTPRequest(clientLocateResource, query, nil, http.DefaultClient, stringDecoder, &result)
+				fmt.Printf("\x1b[1A")
+				fmt.Printf("\x1b[2K")
+				fmt.Printf("%d/%d requests made\n", i*int(reqPerSecond)+j+1, totalIterations*int(reqPerSecond))
+			}
+			time.Sleep(time.Second)
+		}
+		return SuccessResult, nil
+	}
 	actions[ExitCommand] = func([]string) (string, error) {
 		os.Exit(0)
 		return "", nil
@@ -247,6 +280,7 @@ func createActionMap(conf replConfig) map[string]action {
 			"\tREPORT CLIENT <json_report>\n",
 			"\tREPORT ENDPOINT <json_report>\n",
 			"\tSTAT <key=value,key=value,...>\n",
+			"\tREQUEST <ip> <content_id> <request_rate/second> <duration>\n",
 			"\tEXIT\n",
 		), nil
 	}
