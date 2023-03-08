@@ -62,5 +62,5 @@ func main() {
 	// Start services
 	log.SetOutput(os.Stdout)
 	go damocles.StartSignalingAPI(deviceAPIAddr, clientServicer, endpointAllocator)
-	damocles.StartServiceAPI(serviceAPIAddr, updater)
+	damocles.StartServiceAPI(serviceAPIAddr, updater, tracker)
 }

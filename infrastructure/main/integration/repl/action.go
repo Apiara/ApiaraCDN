@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -41,47 +40,6 @@ const (
 	SuccessResult = "Success"
 )
 
-type decoder func(*bytes.Buffer, interface{}) error
-
-func stringDecoder(buf *bytes.Buffer, result interface{}) error {
-	strResult := result.(*string)
-	*strResult = buf.String()
-	return nil
-}
-
-func makeHTTPRequest(url string, query url.Values, body io.Reader,
-	client *http.Client, dec decoder, result interface{}) error {
-	// Create HTTP request
-	req, err := http.NewRequest(http.MethodGet, url, body)
-	if err != nil {
-		return err
-	}
-	req.URL.RawQuery = query.Encode()
-
-	// Perform request and check for failures
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad HTTP status: %s", resp.Status)
-	}
-
-	// Copy body into buffer
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, resp.Body); err != nil {
-		return err
-	}
-
-	// Unmarshal response body into result using gob
-	if buf.Len() > 0 {
-		if err = dec(&buf, result); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type action func(args []string) (string, error)
 
 func createActionMap(conf replConfig) map[string]action {
@@ -105,7 +63,7 @@ func createActionMap(conf replConfig) map[string]action {
 		query.Add(infra.ContentIDParam, args[0])
 		query.Add(infra.RegionServerIDParam, args[1])
 
-		err := makeHTTPRequest(pushResource, query, nil, http.DefaultClient, nil, nil)
+		err := infra.MakeHTTPRequest(pushResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -116,7 +74,7 @@ func createActionMap(conf replConfig) map[string]action {
 		query.Add(infra.ContentIDParam, args[0])
 		query.Add(infra.RegionServerIDParam, args[1])
 
-		err := makeHTTPRequest(purgeResource, query, nil, http.DefaultClient, nil, nil)
+		err := infra.MakeHTTPRequest(purgeResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -126,7 +84,7 @@ func createActionMap(conf replConfig) map[string]action {
 		query := url.Values{}
 		query.Add(infra.ContentRuleParam, args[0])
 
-		err := makeHTTPRequest(setRuleResource, query, nil, http.DefaultClient, nil, nil)
+		err := infra.MakeHTTPRequest(setRuleResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -136,7 +94,7 @@ func createActionMap(conf replConfig) map[string]action {
 		query := url.Values{}
 		query.Add(infra.ContentRuleParam, args[0])
 
-		err := makeHTTPRequest(unsetRuleResource, query, nil, http.DefaultClient, nil, nil)
+		err := infra.MakeHTTPRequest(unsetRuleResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -156,7 +114,7 @@ func createActionMap(conf replConfig) map[string]action {
 			resourceUrl = endpointLocateResource
 		}
 
-		err := makeHTTPRequest(resourceUrl, query, nil, http.DefaultClient, stringDecoder, &result)
+		err := infra.MakeHTTPRequest(resourceUrl, query, nil, http.DefaultClient, infra.StringBodyDecoder, &result)
 		if err != nil {
 			return "", err
 		}
@@ -168,7 +126,7 @@ func createActionMap(conf replConfig) map[string]action {
 		query.Add(infra.RegionServerIDParam, args[0])
 		query.Add(infra.ContentByteSizeParam, args[1])
 
-		err := makeHTTPRequest(allocateResource, query, nil, http.DefaultClient, stringDecoder, &result)
+		err := infra.MakeHTTPRequest(allocateResource, query, nil, http.DefaultClient, infra.StringBodyDecoder, &result)
 		if err != nil {
 			return "", err
 		}
@@ -180,7 +138,7 @@ func createActionMap(conf replConfig) map[string]action {
 		query.Add(infra.ServerPublicAddrParam, args[1])
 		query.Add(infra.ServerPrivateAddrParam, args[2])
 
-		err := makeHTTPRequest(setRegionResource, query, nil, http.DefaultClient, nil, nil)
+		err := infra.MakeHTTPRequest(setRegionResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -190,7 +148,7 @@ func createActionMap(conf replConfig) map[string]action {
 		query := url.Values{}
 		query.Add(infra.RegionServerIDParam, args[0])
 
-		err := makeHTTPRequest(unsetRegionResource, query, nil, http.DefaultClient, nil, nil)
+		err := infra.MakeHTTPRequest(unsetRegionResource, query, nil, http.DefaultClient, nil, nil)
 		if err != nil {
 			return "", err
 		}
@@ -206,9 +164,9 @@ func createActionMap(conf replConfig) map[string]action {
 		var err error
 		switch strings.ToLower(args[0]) {
 		case ClientCommandParam:
-			err = makeHTTPRequest(clientReportResource, nil, body, http.DefaultClient, nil, nil)
+			err = infra.MakeHTTPRequest(clientReportResource, nil, body, http.DefaultClient, nil, nil)
 		case EndpointCommandParam:
-			err = makeHTTPRequest(endpointReportResource, nil, body, http.DefaultClient, nil, nil)
+			err = infra.MakeHTTPRequest(endpointReportResource, nil, body, http.DefaultClient, nil, nil)
 		}
 
 		if err != nil {
@@ -225,7 +183,7 @@ func createActionMap(conf replConfig) map[string]action {
 		}
 
 		var result string
-		err := makeHTTPRequest(statQueryResource, query, nil, http.DefaultClient, stringDecoder, &result)
+		err := infra.MakeHTTPRequest(statQueryResource, query, nil, http.DefaultClient, infra.StringBodyDecoder, &result)
 		if err != nil {
 			return "", err
 		}
@@ -253,7 +211,7 @@ func createActionMap(conf replConfig) map[string]action {
 		fmt.Printf("0/%d requests made\n", totalIterations*int(reqPerSecond))
 		for i := 0; i < totalIterations; i++ {
 			for j := 0; j < int(reqPerSecond); j++ {
-				makeHTTPRequest(clientLocateResource, query, nil, http.DefaultClient, stringDecoder, &result)
+				infra.MakeHTTPRequest(clientLocateResource, query, nil, http.DefaultClient, infra.StringBodyDecoder, &result)
 				fmt.Printf("\x1b[1A")
 				fmt.Printf("\x1b[2K")
 				fmt.Printf("%d/%d requests made\n", i*int(reqPerSecond)+j+1, totalIterations*int(reqPerSecond))

@@ -1,6 +1,7 @@
 package damocles
 
 import (
+	"encoding/gob"
 	"log"
 	"net/http"
 
@@ -17,7 +18,7 @@ type CategoryUpdater interface {
 }
 
 // StartServiceAPI starts the API used to modify service state
-func StartServiceAPI(listenAddr string, updater CategoryUpdater) {
+func StartServiceAPI(listenAddr string, updater CategoryUpdater, tracker NeedTracker) {
 	serviceAPI := http.NewServeMux()
 	serviceAPI.HandleFunc(infra.DamoclesServiceAPIAddResource,
 		func(resp http.ResponseWriter, req *http.Request) {
@@ -31,6 +32,14 @@ func StartServiceAPI(listenAddr string, updater CategoryUpdater) {
 		func(resp http.ResponseWriter, req *http.Request) {
 			id := req.URL.Query().Get(infra.ContentFunctionalIDParam)
 			if err := updater.DelCategory(id); err != nil {
+				log.Println(err)
+				resp.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+	serviceAPI.HandleFunc(infra.DamoclesServiceAPIPriorityListResource,
+		func(resp http.ResponseWriter, req *http.Request) {
+			snapshot := tracker.GetSnapshot()
+			if err := gob.NewEncoder(resp).Encode(snapshot); err != nil {
 				log.Println(err)
 				resp.WriteHeader(http.StatusInternalServerError)
 			}

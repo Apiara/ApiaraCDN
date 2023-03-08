@@ -17,6 +17,8 @@ type NeedTracker interface {
 	DelCategory(string) error
 	AddRequest(string) error
 	AddAllocation(string) error
+
+	GetSnapshot() map[string]int64
 }
 
 // mockNeedTracker is a testing mock for NeedTracker
@@ -30,6 +32,7 @@ func (m *mockNeedTracker) CreateCategory(string) error    { return nil }
 func (m *mockNeedTracker) DelCategory(string) error       { return nil }
 func (m *mockNeedTracker) AddRequest(string) error        { m.requests++; return nil }
 func (m *mockNeedTracker) AddAllocation(string) error     { m.allocates++; return nil }
+func (m *mockNeedTracker) GetSnapshot() map[string]int64  { return map[string]int64{} }
 
 /*
 DesperationTracker is a NeedTracker implementation based on self-defined
@@ -125,4 +128,15 @@ func (d *DesperationTracker) AddAllocation(id string) error {
 	}
 	d.desperation[id] = val - 1
 	return nil
+}
+
+func (d *DesperationTracker) GetSnapshot() map[string]int64 {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	snapshot := make(map[string]int64)
+	for key, value := range d.desperation {
+		snapshot[key] = value
+	}
+	return snapshot
 }

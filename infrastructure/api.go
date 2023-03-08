@@ -24,6 +24,8 @@ const (
 
 	DamoclesServiceAPIAddResource = "/category/add"
 	DamoclesServiceAPIDelResource = "/category/del"
+
+	DamoclesServiceAPIPriorityListResource = "/priority/list"
 )
 
 const (

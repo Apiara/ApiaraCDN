@@ -9,13 +9,12 @@ import (
 
 func TestFindNearestDataClass(t *testing.T) {
 	classes := []int64{0, 1024, 4096, 65549, 328748}
-	allocator := NewEvenDataAllocator(classes)
 
 	availableSpace := int64(1071)
-	classIdx := allocator.findNearestDataClass(availableSpace, true)
+	classIdx := approximateBinarySearch(classes, availableSpace, true)
 	assert.Equal(t, 2, classIdx, "Got wrong class index: %d", classIdx)
 
-	classIdx = allocator.findNearestDataClass(availableSpace, false)
+	classIdx = approximateBinarySearch(classes, availableSpace, false)
 	assert.Equal(t, 1, classIdx, "Got wrong class index: %d", classIdx)
 }
 
