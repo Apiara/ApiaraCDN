@@ -13,21 +13,21 @@ import (
 )
 
 // Represents a Content ID, Priority Value pair that can be sent from and edge server
-type ContentPriorityEntry struct {
+type contentPriorityEntry struct {
 	Priority int64
 	ID       string
 }
 
-func updateToPriorityList(update map[string]int64) []ContentPriorityEntry {
-	list := make([]ContentPriorityEntry, 0, len(update))
+func updateToPriorityList(update map[string]int64) []contentPriorityEntry {
+	list := make([]contentPriorityEntry, 0, len(update))
 	for key, value := range update {
-		list = append(list, ContentPriorityEntry{ID: key, Priority: value})
+		list = append(list, contentPriorityEntry{ID: key, Priority: value})
 	}
 	return list
 }
 
 // List of ContentPriorityEntries for sorting
-type contentPriorityList []ContentPriorityEntry
+type contentPriorityList []contentPriorityEntry
 
 func (c contentPriorityList) Len() int           { return len(c) }
 func (c contentPriorityList) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
@@ -63,6 +63,7 @@ func NewPrecomputedDataAllocator(edgeServerAddr string, updateFrequency time.Dur
 	}
 
 	// Create allocator object
+	sort.Sort(int64arr(dataClasses))
 	allocator := &PrecomputedDataAllocator{
 		mutex:            &sync.RWMutex{},
 		contentMap:       map[string]int64{},
@@ -78,7 +79,7 @@ func NewPrecomputedDataAllocator(edgeServerAddr string, updateFrequency time.Dur
 }
 
 // Returns allocation set along with actual size used
-func createOptimalAllocation(contentByPrio []ContentPriorityEntry, contentSizeMap map[string]int64, availableSpace int64) (map[string]struct{}, int64) {
+func createOptimalAllocation(contentByPrio []contentPriorityEntry, contentSizeMap map[string]int64, availableSpace int64) (map[string]struct{}, int64) {
 	allocations := make(map[string]struct{})
 
 	spaceLeft := availableSpace
@@ -117,6 +118,7 @@ func startRemoteInfoPrecomputer(edgePriorityAddress string, frequency time.Durat
 		updateMap := make(map[string]int64)
 		err := infra.MakeHTTPRequest(edgePriorityAddress, url.Values{}, nil, client, infra.GOBBodyDecoder, &updateMap)
 		if err != nil {
+			allocator.mutex.RUnlock()
 			log.Printf("failed to update content allocation priorities: %s", err.Error())
 			continue
 		}
@@ -134,12 +136,15 @@ func startRemoteInfoPrecomputer(edgePriorityAddress string, frequency time.Durat
 		sort.Sort(contentInfo)
 
 		// Compute priority-value-first premade allocation lists
-		dataClasses := make([]int64, len(idealDataClasses))
-		premadeSolutions := make([]map[string]struct{}, len(idealDataClasses))
+		dataClasses := make([]int64, 0, len(idealDataClasses))
+		premadeSolutions := make([]map[string]struct{}, 0, len(idealDataClasses))
 		for i := 0; i < len(idealDataClasses); i++ {
 			solutionSet, setSize := createOptimalAllocation(update, allocator.contentMap, idealDataClasses[i])
-			dataClasses[i] = setSize
-			premadeSolutions[i] = solutionSet
+
+			if len(dataClasses) == 0 || setSize != dataClasses[len(dataClasses)-1] {
+				dataClasses = append(dataClasses, setSize)
+				premadeSolutions = append(premadeSolutions, solutionSet)
+			}
 		}
 		allocator.mutex.RUnlock()
 
@@ -191,6 +196,7 @@ func setToList(set map[string]struct{}) []string {
 	i := 0
 	for key := range set {
 		list[i] = key
+		i++
 	}
 	return list
 }
@@ -207,6 +213,11 @@ func duplicateSet(set map[string]struct{}) map[string]struct{} {
 func (b *PrecomputedDataAllocator) AllocateSpace(availableSpace int64) ([]string, error) {
 	b.mutex.RLock()
 	defer b.mutex.RUnlock()
+
+	// Edge test
+	if len(b.premadeSolutions) == 0 {
+		return []string{}, nil
+	}
 
 	// Lookup precomputed optimal subset of data allocations -> O(log n)
 	premadeIdx := approximateBinarySearch(b.dataClasses, availableSpace, false)
