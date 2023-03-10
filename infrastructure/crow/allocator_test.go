@@ -59,7 +59,9 @@ func TestEvenDataAllocator(t *testing.T) {
 
 func TestCompoundLocationDataAllocator(t *testing.T) {
 	classes := []int64{4096, 1024, 65549, 328748}
-	allocator := NewCompoundLocationDataAllocator(classes)
+	allocator := NewCompoundLocationDataAllocator(classes, func(string) (DataAllocator, error) {
+		return NewEvenDataAllocator(classes), nil
+	})
 
 	// Test underlying resource tracking and creation
 	sizes := []int64{4000, 60000, 200}

@@ -15,12 +15,14 @@ type LocationAwareDataAllocator interface {
 	AllocateSpace(loc string, availableSpace int64) ([]string, error)
 }
 
+type DataAllocatorConstructor func(region string) (DataAllocator, error)
+
 /*
 CompoundLocationDataAllocator implements LocationAwareDataAllocator
 in a simple way by encapsulating multiple DataAllocators
 */
 type CompoundLocationDataAllocator struct {
-	createAllocator func() DataAllocator
+	createAllocator DataAllocatorConstructor
 	mutex           *sync.Mutex
 	locations       map[string]DataAllocator
 	entryCount      map[string]int
@@ -30,25 +32,28 @@ type CompoundLocationDataAllocator struct {
 NewCompoundLocationDataAllocator creates a new instance of CompoundLocationDataAllocator
 using an EvenDataAllocator as the underlying DataAllocator implementation
 */
-func NewCompoundLocationDataAllocator(sizeClasses []int64) *CompoundLocationDataAllocator {
+func NewCompoundLocationDataAllocator(sizeClasses []int64, createAllocator DataAllocatorConstructor) *CompoundLocationDataAllocator {
 	return &CompoundLocationDataAllocator{
-		createAllocator: func() DataAllocator {
-			return NewEvenDataAllocator(sizeClasses)
-		},
-		mutex:      &sync.Mutex{},
-		locations:  make(map[string]DataAllocator),
-		entryCount: make(map[string]int),
+		createAllocator: createAllocator,
+		mutex:           &sync.Mutex{},
+		locations:       make(map[string]DataAllocator),
+		entryCount:      make(map[string]int),
 	}
 }
 
 // NewEntry creates a new (content, size) entry at a location
 func (c *CompoundLocationDataAllocator) NewEntry(loc string, cid string, size int64) error {
 	c.mutex.Lock()
+	var err error
 	var allocator DataAllocator
 	if subAlloc, ok := c.locations[loc]; ok {
 		allocator = subAlloc
 	} else {
-		c.locations[loc] = c.createAllocator()
+		c.locations[loc], err = c.createAllocator(loc)
+		if err != nil {
+			c.mutex.Unlock()
+			return err
+		}
 		c.entryCount[loc] = 0
 		allocator = c.locations[loc]
 	}
